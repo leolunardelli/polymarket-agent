@@ -20,7 +20,7 @@ const ConfigSchema = z.object({
 
   // Database Configuration
   database: z.object({
-    url: z.string().min(1).describe('Database connection URL'),
+    url: z.string().min(1).default('postgresql://localhost:5432/polymarket').describe('Database connection URL'),
     maxConnections: z.number().default(20).describe('Max connection pool size'),
     connectionTimeoutMs: z.number().default(30000),
     idleTimeoutMs: z.number().default(30000),
@@ -54,10 +54,10 @@ const ConfigSchema = z.object({
   // Security
   security: z.object({
     corsOrigins: z.array(z.string()).default(['http://localhost:3000']),
-    tlsEnabled: z.boolean().default(true),
+    tlsEnabled: z.boolean().default(false),
     tlsCertPath: z.string().optional().describe('Path to TLS certificate file'),
     tlsKeyPath: z.string().optional().describe('Path to TLS key file'),
-    jwtSecret: z.string().min(32).describe('JWT secret for auth tokens'),
+    jwtSecret: z.string().min(32).default('development-jwt-secret-change-in-production-32chars').describe('JWT secret for auth tokens'),
   }),
 
   // Feature Flags
