@@ -127,6 +127,10 @@ interface PolymarketConfig {
     maxRequests: number;
     windowMs: number;
   };
+  testMode?: {
+    enabled: boolean;
+    virtualBalance?: number;
+  };
 }
 
 export class PolymarketAPI {
@@ -137,11 +141,13 @@ export class PolymarketAPI {
   private readonly maxRequests: number;
   private readonly windowMs: number;
   private readonly retryConfig: RetryConfig;
+  private readonly testMode: boolean;
   
   constructor(private config: PolymarketConfig = {}) {
     const rateLimit = config.rateLimit || { maxRequests: 100, windowMs: 60000 };
     this.maxRequests = rateLimit.maxRequests;
     this.windowMs = rateLimit.windowMs;
+    this.testMode = config.testMode?.enabled || false;
     
     // Use shared thread-safe cache
     this.cache = getCache(1000, this.cacheTTL);
@@ -161,7 +167,11 @@ export class PolymarketAPI {
       ...config.baseUrls,
     };
     
-    logger.info('PolymarketAPI initialized', { urls: this.urls, rateLimit });
+    logger.info('PolymarketAPI initialized', {
+      urls: this.urls,
+      rateLimit,
+      testMode: this.testMode,
+    });
   }
   
   private async enforceRateLimit(): Promise<void> {
@@ -390,6 +400,23 @@ export class PolymarketAPI {
   
   setCacheTTL(ttl: number): void {
     (this as any).cacheTTL = ttl;
+  }
+
+  /**
+   * Check if test mode is enabled
+   */
+  isTestMode(): boolean {
+    return this.testMode;
+  }
+
+  /**
+   * Get test mode configuration
+   */
+  getTestModeConfig(): { enabled: boolean; virtualBalance?: number } {
+    return {
+      enabled: this.testMode,
+      virtualBalance: this.config.testMode?.virtualBalance,
+    };
   }
 }
 

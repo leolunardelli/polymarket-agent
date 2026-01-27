@@ -18,14 +18,6 @@ const ConfigSchema = z.object({
     }).optional(),
   }),
 
-  // Database Configuration
-  database: z.object({
-    url: z.string().min(1).default('postgresql://localhost:5432/polymarket').describe('Database connection URL'),
-    maxConnections: z.number().default(20).describe('Max connection pool size'),
-    connectionTimeoutMs: z.number().default(30000),
-    idleTimeoutMs: z.number().default(30000),
-  }),
-
   // Cache Configuration
   cache: z.object({
     ttlMs: z.number().default(10000).describe('Default cache TTL in milliseconds'),
@@ -67,6 +59,17 @@ const ConfigSchema = z.object({
     automatedTrading: z.boolean().default(false),
   }),
 
+  // Test Mode & Leaderboard Configuration
+  testMode: z.object({
+    enabled: z.boolean().default(false).describe('Enable virtual token trading for testing'),
+    virtualBalance: z.number().default(10000).describe('Starting virtual token balance'),
+    durationDays: z.number().default(7).describe('Test duration in days'),
+    leaderboardEnabled: z.boolean().default(true).describe('Track metrics based on leaderboard'),
+    metricsSource: z.enum(['leaderboard', 'manual']).default('leaderboard').describe('Metrics source: leaderboard or manual'),
+    passphrase: z.string().optional().describe('Passphrase for Polymarket API'),
+    secret: z.string().optional().describe('Secret key for Polymarket API'),
+  }),
+
   // Environment
   environment: z.enum(['development', 'staging', 'production']).default('development'),
   port: z.number().default(3000),
@@ -90,12 +93,6 @@ export function loadConfig(): Config {
         clob: process.env.POLYMARKET_CLOB_URL,
         data: process.env.POLYMARKET_DATA_URL,
       },
-    },
-    database: {
-      url: process.env.DATABASE_URL,
-      maxConnections: process.env.DATABASE_MAX_CONNECTIONS ? parseInt(process.env.DATABASE_MAX_CONNECTIONS, 10) : undefined,
-      connectionTimeoutMs: process.env.DATABASE_CONNECTION_TIMEOUT ? parseInt(process.env.DATABASE_CONNECTION_TIMEOUT, 10) : undefined,
-      idleTimeoutMs: process.env.DATABASE_IDLE_TIMEOUT ? parseInt(process.env.DATABASE_IDLE_TIMEOUT, 10) : undefined,
     },
     cache: {
       ttlMs: process.env.CACHE_TTL_MS ? parseInt(process.env.CACHE_TTL_MS, 10) : undefined,
@@ -125,6 +122,15 @@ export function loadConfig(): Config {
       liquidityAnalysis: process.env.FEATURE_LIQUIDITY_ANALYSIS !== 'false',
       sentimentAnalysis: process.env.FEATURE_SENTIMENT_ANALYSIS !== 'false',
       automatedTrading: process.env.FEATURE_AUTOMATED_TRADING === 'true',
+    },
+    testMode: {
+      enabled: process.env.TEST_MODE_ENABLED === 'true',
+      virtualBalance: process.env.VIRTUAL_BALANCE ? parseInt(process.env.VIRTUAL_BALANCE, 10) : undefined,
+      durationDays: process.env.TEST_DURATION_DAYS ? parseInt(process.env.TEST_DURATION_DAYS, 10) : undefined,
+      leaderboardEnabled: process.env.LEADERBOARD_ENABLED !== 'false',
+      metricsSource: process.env.METRICS_SOURCE as 'leaderboard' | 'manual' | undefined,
+      passphrase: process.env.POLYMARKET_PASSPHRASE,
+      secret: process.env.POLYMARKET_SECRET,
     },
     environment: process.env.ENVIRONMENT as 'development' | 'staging' | 'production' | undefined,
     port: process.env.PORT ? parseInt(process.env.PORT, 10) : undefined,
@@ -157,7 +163,7 @@ export function validateNoHardcodedSecrets(): void {
   ];
 
   // Check environment variables don't contain secrets in values
-  const sensitiveEnvVars = ['POLYMARKET_API_KEY', 'POLYMARKET_PRIVATE_KEY', 'DATABASE_URL'];
+  const sensitiveEnvVars = ['POLYMARKET_API_KEY', 'POLYMARKET_PRIVATE_KEY'];
   
   for (const envVar of sensitiveEnvVars) {
     const value = process.env[envVar];

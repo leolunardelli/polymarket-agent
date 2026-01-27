@@ -6,7 +6,6 @@
 import { logger } from './logger';
 import { getConfig, validateNoHardcodedSecrets } from './env-config';
 import { getServer } from './server';
-import { initializeDatabase } from './database';
 
 /**
  * Initialize application in correct order
@@ -21,15 +20,10 @@ async function initializeApplication(): Promise<void> {
     const config = getConfig();
     logger.info('Configuration loaded successfully', {
       environment: config.environment,
-      database: config.database.url,
       port: config.port,
     });
 
-    // 3. Initialize database
-    logger.info('Initializing database connection');
-    await initializeDatabase();
-
-    // 4. Start HTTP server
+    // 3. Start HTTP server
     logger.info('Starting HTTP server');
     const server = getServer();
     await server.start();

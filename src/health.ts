@@ -6,7 +6,6 @@
  */
 
 import { logger } from './logger';
-import { database } from './database';
 
 export interface HealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -15,7 +14,6 @@ export interface HealthStatus {
   checks: {
     logger: 'ok' | 'error';
     config: 'ok' | 'error';
-    database: 'ok' | 'error';
     memory: 'ok' | 'error';
   };
   details?: Record<string, any>;
@@ -36,14 +34,10 @@ export async function checkHealth(): Promise<HealthStatus> {
   const checks: HealthStatus['checks'] = {
     logger: 'ok',
     config: 'ok',
-    database: 'ok',
     memory: 'ok',
   };
   
   const details: Record<string, any> = {};
-  let dbHealth: { connected: boolean; responseTime?: number; poolStats?: any } = {
-    connected: false,
-  };
   
   // Check 1: Logger works
   try {
@@ -65,28 +59,7 @@ export async function checkHealth(): Promise<HealthStatus> {
     details.config = `Config error: ${e instanceof Error ? e.message : String(e)}`;
   }
   
-  // Check 3: Database connectivity
-  try {
-    const dbCheck = await database.healthCheck();
-    if (dbCheck.healthy) {
-      checks.database = 'ok';
-      dbHealth = {
-        connected: true,
-        responseTime: dbCheck.responseTime,
-        poolStats: database.getPoolStats(),
-      };
-    } else {
-      checks.database = 'error';
-      dbHealth.connected = false;
-      details.database = 'Database health check failed';
-    }
-  } catch (e) {
-    checks.database = 'error';
-    dbHealth.connected = false;
-    details.database = `Database error: ${e instanceof Error ? e.message : String(e)}`;
-  }
-  
-  // Check 4: Memory usage
+  // Check 3: Memory usage
   try {
     const memUsage = process.memoryUsage();
     const heapPercent = (memUsage.heapUsed / memUsage.heapTotal) * 100;
@@ -107,7 +80,7 @@ export async function checkHealth(): Promise<HealthStatus> {
   }
   
   const uptime = Date.now() - startTime;
-  const criticalChecks = [checks.logger, checks.config, checks.database];
+  const criticalChecks = [checks.logger, checks.config];
   const allCriticalOk = criticalChecks.every(v => v === 'ok');
   
   const status: HealthStatus = {
@@ -115,7 +88,6 @@ export async function checkHealth(): Promise<HealthStatus> {
     timestamp: new Date().toISOString(),
     uptime,
     checks,
-    database: dbHealth,
     ...(Object.keys(details).length > 0 && { details }),
   };
   

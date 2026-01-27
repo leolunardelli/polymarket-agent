@@ -1,0 +1,73 @@
+{
+  "timestamp": "2026-01-27T23:19:00.751Z",
+  "testInfo": {
+    "startTime": "2026-01-27T23:14:00.295Z",
+    "endTime": "2026-02-03T23:14:00.295Z",
+    "elapsedHours": "0.08",
+    "remainingHours": "167.92",
+    "percentComplete": "0.05",
+    "status": "completed"
+  },
+  "performance": {
+    "startBalance": 10000,
+    "currentBalance": 7498.148648,
+    "totalValue": 9997.500648000001,
+    "unrealizedPnL": 0,
+    "realizedPnL": 0,
+    "totalPnL": 0,
+    "returnPercent": "-0.02",
+    "winRate": "0.00",
+    "maxDrawdown": "0.02"
+  },
+  "activity": {
+    "totalTrades": 5,
+    "winningTrades": 0,
+    "losingTrades": 0,
+    "openPositions": 5,
+    "marketsAnalyzed": 50,
+    "cyclesCompleted": 1
+  },
+  "positions": [
+    {
+      "symbol": "Will Trump deport 250,000-500,..._No",
+      "quantity": 3623,
+      "entryPrice": 0.138,
+      "currentPrice": 0.138,
+      "pnl": 0,
+      "pnlPercent": "0.00"
+    },
+    {
+      "symbol": "Will the U.S. collect less tha..._No",
+      "quantity": 2403,
+      "entryPrice": 0.208,
+      "currentPrice": 0.208,
+      "pnl": 0,
+      "pnlPercent": "0.00"
+    },
+    {
+      "symbol": "Will the U.S. collect between ..._Yes",
+      "quantity": 3448,
+      "entryPrice": 0.145,
+      "currentPrice": 0.145,
+      "pnl": 0,
+      "pnlPercent": "0.00"
+    },
+    {
+      "symbol": "Will the New England Patriots ..._Yes",
+      "quantity": 1572,
+      "entryPrice": 0.318,
+      "currentPrice": 0.318,
+      "pnl": 0,
+      "pnlPercent": "0.00"
+    },
+    {
+      "symbol": "Will the Seattle Seahawks win ..._No",
+      "quantity": 1564,
+      "entryPrice": 0.3195,
+      "currentPrice": 0.3195,
+      "pnl": 0,
+      "pnlPercent": "0.00"
+    }
+  ],
+  "errors": []
+}
