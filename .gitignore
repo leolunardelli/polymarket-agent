@@ -1,0 +1,99 @@
+node_modules/
+dist/
+build/
+
+# Environment Variables - NEVER commit
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.staging.local
+.env.production.local
+
+# Secrets and Keys - NEVER commit
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+.ssh/
+secrets/
+.vault-token
+vault.json
+
+# Logs
+*.log
+logs/
+log/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+data/
+migrations/*.bak
+
+# IDE and Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+.vs/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.DS_Store
+
+# Testing
+coverage/
+.nyc_output/
+test-results/
+*.heapdump
+
+# Build artifacts
+*.tsbuildinfo
+.cache/
+
+# OS files
+Thumbs.db
+.DS_Store
+._*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Dependencies (lockfiles for generated projects)
+# Leave package-lock.json and yarn.lock if present
+
+# Monitoring and metrics
+prometheus-data/
+grafana-storage/
+alertmanager-data/
+
+# Backup files
+*.bak
+*.backup
+*.orig
+~*
+
+# Platform specific
+.npm
+.eslintcache
+.node_repl_history
+.yarn-integrity
+
+# Security scanning results
+snyk-results.json
+npm-audit.json
+sbom.json

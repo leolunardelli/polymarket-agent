@@ -1,0 +1,396 @@
+import { z } from 'zod';
+import { logger } from './logger';
+import { getCache, ThreadSafeCache } from './cache';
+import { recordAPIMetrics } from './monitoring';
+
+// Retry configuration
+interface RetryConfig {
+  maxAttempts: number;
+  initialDelayMs: number;
+  maxDelayMs: number;
+  backoffMultiplier: number;
+}
+
+// Error tracking for monitoring
+class APIError extends Error {
+  constructor(
+    public statusCode: number,
+    public endpoint: string,
+    message: string,
+    public retryable: boolean = false
+  ) {
+    super(message);
+    this.name = 'APIError';
+  }
+}
+
+const MarketSchema = z.object({
+  condition_id: z.string(),
+  question: z.string(),
+  description: z.string().optional(),
+  end_date_iso: z.string(),
+  game_start_time: z.string().optional(),
+  question_id: z.string(),
+  market_slug: z.string(),
+  min_incentive_size: z.number().optional(),
+  max_incentive_spread: z.number().optional(),
+  active: z.boolean(),
+  closed: z.boolean(),
+  archived: z.boolean(),
+  accepting_orders: z.boolean(),
+  seconds_delay: z.number(),
+  icon: z.string().optional(),
+  outcomes: z.array(z.object({
+    price: z.number(),
+  })),
+  tokens: z.array(z.object({
+    token_id: z.string(),
+    outcome: z.string(),
+    price: z.number(),
+    winner: z.boolean().optional(),
+  })),
+  volume: z.number().optional(),
+  volume_num: z.number().optional(),
+  liquidity: z.number().optional(),
+  liquidity_num: z.number().optional(),
+});
+
+const EventSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  title: z.string(),
+  description: z.string().optional(),
+  start_date_iso: z.string().optional(),
+  end_date_iso: z.string().optional(),
+  image: z.string().optional(),
+  icon: z.string().optional(),
+  active: z.boolean(),
+  closed: z.boolean(),
+  archived: z.boolean(),
+  restricted: z.boolean().optional(),
+  markets: z.array(MarketSchema),
+  volume: z.number().optional(),
+  liquidity: z.number().optional(),
+});
+
+const OrderbookSchema = z.object({
+  asset_id: z.string(),
+  bids: z.array(z.object({
+    price: z.string(),
+    size: z.string(),
+  })),
+  asks: z.array(z.object({
+    price: z.string(),
+    size: z.string(),
+  })),
+  timestamp: z.number(),
+});
+
+const TradeSchema = z.object({
+  id: z.string(),
+  market: z.string(),
+  asset_id: z.string(),
+  side: z.enum(['BUY', 'SELL']),
+  size: z.string(),
+  price: z.string(),
+  timestamp: z.number(),
+  fee_rate_bps: z.number().optional(),
+  status: z.string().optional(),
+});
+
+const PositionSchema = z.object({
+  asset_id: z.string(),
+  market: z.string(),
+  size: z.string(),
+  average_price: z.string(),
+  current_value: z.string(),
+  pnl: z.string(),
+  pnl_percentage: z.string(),
+});
+
+type Market = z.infer<typeof MarketSchema>;
+type Event = z.infer<typeof EventSchema>;
+type Orderbook = z.infer<typeof OrderbookSchema>;
+type Trade = z.infer<typeof TradeSchema>;
+type Position = z.infer<typeof PositionSchema>;
+
+interface PolymarketConfig {
+  apiKey?: string;
+  privateKey?: string;
+  chainId?: number;
+  baseUrls?: {
+    gamma?: string;
+    clob?: string;
+    data?: string;
+  };
+  rateLimit?: {
+    maxRequests: number;
+    windowMs: number;
+  };
+}
+
+export class PolymarketAPI {
+  private requests: number[] = [];
+  private cache: ThreadSafeCache<string>;
+  private readonly cacheTTL = 10000;
+  private readonly urls: Record<string, string>;
+  private readonly maxRequests: number;
+  private readonly windowMs: number;
+  private readonly retryConfig: RetryConfig;
+  
+  constructor(private config: PolymarketConfig = {}) {
+    const rateLimit = config.rateLimit || { maxRequests: 100, windowMs: 60000 };
+    this.maxRequests = rateLimit.maxRequests;
+    this.windowMs = rateLimit.windowMs;
+    
+    // Use shared thread-safe cache
+    this.cache = getCache(1000, this.cacheTTL);
+    
+    // Retry configuration with exponential backoff
+    this.retryConfig = {
+      maxAttempts: 3,
+      initialDelayMs: 1000,
+      maxDelayMs: 30000,
+      backoffMultiplier: 2,
+    };
+    
+    this.urls = {
+      gamma: 'https://gamma-api.polymarket.com',
+      clob: 'https://clob.polymarket.com',
+      data: 'https://data-api.polymarket.com',
+      ...config.baseUrls,
+    };
+    
+    logger.info('PolymarketAPI initialized', { urls: this.urls, rateLimit });
+  }
+  
+  private async enforceRateLimit(): Promise<void> {
+    while (true) {
+      const now = Date.now();
+      this.requests = this.requests.filter(t => now - t < this.windowMs);
+      
+      if (this.requests.length >= this.maxRequests) {
+        // We're at the limit, wait and retry
+        const wait = this.windowMs - (now - this.requests[0]);
+        if (wait > 0) {
+          logger.warn('Rate limit reached, waiting', { waitMs: wait });
+          await new Promise(r => setTimeout(r, Math.min(wait, 1000))); // Cap wait at 1s per iteration
+        }
+        // Loop continues to check again
+      } else {
+        // We have capacity, add this request and return
+        this.requests.push(now);
+        return;
+      }
+    }
+  }
+  
+  private isRetryableError(statusCode: number): boolean {
+    // Retry on server errors and rate limiting
+    return statusCode >= 500 || statusCode === 429 || statusCode === 408;
+  }
+  
+  private async delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+  
+  private async fetchWithRetry<T>(
+    url: string,
+    options: RequestInit = {},
+    schema?: z.ZodSchema<T>,
+    attempt: number = 1
+  ): Promise<T> {
+    const maxAttempts = this.retryConfig.maxAttempts;
+    
+    try {
+      await this.enforceRateLimit();
+      
+      const cacheKey = `${url}${JSON.stringify(options)}`;
+      const cached = this.cache.get(cacheKey);
+      if (cached) {
+        logger.debug('Cache hit', { url });
+        return cached.data;
+      }
+      
+      const headers: any = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (options.headers && typeof options.headers === 'object') {
+        Object.assign(headers, options.headers);
+      }
+      
+      if (this.config.apiKey) {
+        headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+      }
+      
+      logger.debug('Fetching', { url, attempt, maxAttempts });
+      
+      // Use AbortController for timeout support (Node.js 15+)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          ...options,
+          headers,
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+      
+      if (!response.ok) {
+        const body = await response.text();
+        const error = new APIError(
+          response.status,
+          url,
+          `API ${response.status}: ${body}`,
+          this.isRetryableError(response.status)
+        );
+        
+        if (error.retryable && attempt < maxAttempts) {
+          const delayMs = Math.min(
+            this.retryConfig.initialDelayMs * Math.pow(this.retryConfig.backoffMultiplier, attempt - 1),
+            this.retryConfig.maxDelayMs
+          );
+          logger.warn('Retryable error, backing off', { error: error.message, delayMs, attempt });
+          await this.delay(delayMs);
+          return this.fetchWithRetry(url, options, schema, attempt + 1);
+        }
+        
+        throw error;
+      }
+      
+      const data = await response.json();
+      
+      // Validate response with schema
+      let validated: T;
+      try {
+        validated = schema ? schema.parse(data) : (data as T);
+      } catch (parseError) {
+        logger.error('Response validation failed', { url, error: parseError });
+        throw parseError;
+      }
+      
+      await this.cache.set(cacheKey, validated, this.cacheTTL);
+      logger.debug('Request successful', { url });
+      return validated;
+    } catch (error) {
+      logger.error('Fetch failed', {
+        url,
+        attempt,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+  
+  private async fetch<T>(
+    url: string,
+    options: RequestInit = {},
+    schema?: z.ZodSchema<T>
+  ): Promise<T> {
+    return this.fetchWithRetry(url, options, schema, 1);
+  }
+  
+  async getMarkets(params: { limit?: number; offset?: number; closed?: boolean; archived?: boolean; order?: 'id' | 'volume' | 'liquidity'; ascending?: boolean } = {}): Promise<Market[]> {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => v !== undefined && q.set(k, String(v)));
+    return this.fetch(`${this.urls.gamma}/markets?${q}`, {}, z.array(MarketSchema));
+  }
+  
+  async getMarket(slug: string): Promise<Market> {
+    const url = `${this.urls.gamma}/markets/${slug}`;
+    return this.fetch(url, {}, MarketSchema);
+  }
+  
+  async getEvents(params: { limit?: number; offset?: number; closed?: boolean; archived?: boolean; order?: 'id' | 'volume' | 'liquidity'; ascending?: boolean; tag?: string } = {}): Promise<Event[]> {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => v !== undefined && q.set(k, String(v)));
+    return this.fetch(`${this.urls.gamma}/events?${q}`, {}, z.array(EventSchema));
+  }
+  
+  async getEvent(slug: string): Promise<Event> {
+    const url = `${this.urls.gamma}/events/${slug}`;
+    return this.fetch(url, {}, EventSchema);
+  }
+  
+  async getOrderbook(tokenId: string): Promise<Orderbook> {
+    const url = `${this.urls.clob}/book?token_id=${tokenId}`;
+    return this.fetch(url, {}, OrderbookSchema);
+  }
+  
+  async getPrice(tokenId: string, side: 'BUY' | 'SELL' = 'BUY'): Promise<number> {
+    const url = `${this.urls.clob}/price?token_id=${tokenId}&side=${side}`;
+    const data = await this.fetch<{ price: string }>(url);
+    return parseFloat(data.price);
+  }
+  
+  async getMidpoint(tokenId: string): Promise<number> {
+    const url = `${this.urls.clob}/midpoint?token_id=${tokenId}`;
+    const data = await this.fetch<{ mid: string }>(url);
+    return parseFloat(data.mid);
+  }
+  
+  async getSpread(tokenId: string): Promise<{ spread: number; spread_percent: number }> {
+    const url = `${this.urls.clob}/spread?token_id=${tokenId}`;
+    return this.fetch(url);
+  }
+  
+  async getTrades(params: {
+    market?: string;
+    asset_id?: string;
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<Trade[]> {
+    const queryParams = new URLSearchParams();
+    if (params.market) queryParams.set('market', params.market);
+    if (params.asset_id) queryParams.set('asset_id', params.asset_id);
+    if (params.limit) queryParams.set('limit', params.limit.toString());
+    if (params.offset) queryParams.set('offset', params.offset.toString());
+    
+    const url = `${this.urls.data}/trades?${queryParams}`;
+    return this.fetch(url, {}, z.array(TradeSchema));
+  }
+  
+  async getPositions(address: string): Promise<Position[]> {
+    const url = `${this.urls.data}/positions?user=${address}`;
+    return this.fetch(url, {}, z.array(PositionSchema));
+  }
+  
+  async searchMarkets(query: string): Promise<Market[]> {
+    const url = `${this.urls.gamma}/search?q=${encodeURIComponent(query)}`;
+    return this.fetch(url, {}, z.array(MarketSchema));
+  }
+  
+  async getPriceHistory(tokenId: string, params: {
+    startTs?: number;
+    endTs?: number;
+    interval?: 'minute' | 'hour' | 'day';
+  } = {}): Promise<Array<{ timestamp: number; price: number }>> {
+    const queryParams = new URLSearchParams({ token_id: tokenId });
+    if (params.startTs) queryParams.set('start_ts', params.startTs.toString());
+    if (params.endTs) queryParams.set('end_ts', params.endTs.toString());
+    if (params.interval) queryParams.set('interval', params.interval);
+    
+    const url = `${this.urls.data}/prices?${queryParams}`;
+    return this.fetch(url);
+  }
+  
+  async getTags(): Promise<Array<{ label: string; slug: string }>> {
+    const url = `${this.urls.gamma}/tags`;
+    return this.fetch(url);
+  }
+  
+  clearCache(): void {
+    this.cache.clear();
+  }
+  
+  setCacheTTL(ttl: number): void {
+    (this as any).cacheTTL = ttl;
+  }
+}
+
+export { Market, Event, Orderbook, Trade, Position, APIError };
