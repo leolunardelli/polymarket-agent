@@ -1,0 +1,61 @@
+# Prometheus configuration for polymarket-agent monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'polymarket-agent'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - localhost:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - 'alerts.yml'
+
+# Scrape configurations
+scrape_configs:
+  # Polymarket Agent Application Metrics
+  - job_name: 'polymarket-agent'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'polymarket-agent'
+          env: 'production'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # Node Exporter for system metrics
+  - job_name: 'node'
+    scrape_interval: 60s
+    static_configs:
+      - targets: ['localhost:9100']
+        labels:
+          service: 'system'
+          env: 'production'
+
+  # PostgreSQL Exporter for database metrics
+  - job_name: 'postgresql'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['localhost:9187']
+        labels:
+          service: 'database'
+          env: 'production'
+
+  # Redis Exporter for cache metrics
+  - job_name: 'redis'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['localhost:9121']
+        labels:
+          service: 'cache'
+          env: 'production'

@@ -1,0 +1,209 @@
+# Alert rules for polymarket-agent
+
+groups:
+  - name: application_alerts
+    interval: 30s
+    rules:
+      # High Error Rate Alert
+      - alert: HighErrorRate
+        expr: |
+          (
+            increase(http_requests_total{status=~"5.."}[5m])
+            / increase(http_requests_total[5m])
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: polymarket-agent
+        annotations:
+          summary: "High error rate detected ({{ .Value | humanizePercentage }})"
+          description: "Error rate exceeded 5% for more than 5 minutes on {{ $labels.instance }}"
+          runbook: "https://wiki.company.com/runbooks/high-error-rate"
+
+      # API Latency Alert (P99)
+      - alert: HighAPILatencyP99
+        expr: |
+          histogram_quantile(0.99, rate(api_request_duration_seconds_bucket[5m])) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          service: polymarket-agent
+        annotations:
+          summary: "High API latency (p99: {{ .Value | humanizeDuration }})"
+          description: "API p99 latency exceeded 2 seconds on {{ $labels.instance }}"
+          runbook: "https://wiki.company.com/runbooks/high-latency"
+
+      # Rate Limit Exceeded Alert
+      - alert: HighRateLimitExceeded
+        expr: |
+          (
+            increase(api_rate_limited_total[5m])
+            / increase(api_requests_total[5m])
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          service: polymarket-agent
+        annotations:
+          summary: "High rate limit hit ({{ .Value | humanizePercentage }} of requests)"
+          description: "More than 50% of requests are being rate limited on {{ $labels.instance }}"
+          action: "Scale horizontally or reduce request rate"
+
+      # Database Connection Pool Exhaustion
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          db_connections_active / db_connections_max > 0.9
+        for: 2m
+        labels:
+          severity: critical
+          service: polymarket-agent
+        annotations:
+          summary: "Database connection pool {{ .Value | humanizePercentage }} exhausted"
+          description: "Active DB connections are {{ .Value | humanizePercentage }} of max on {{ $labels.instance }}"
+          runbook: "https://wiki.company.com/runbooks/db-connection-exhaustion"
+
+      # Memory Leak Detection
+      - alert: MemoryLeakDetected
+        expr: |
+          rate(process_resident_memory_bytes[1h]) > 100000000
+        for: 30m
+        labels:
+          severity: warning
+          service: polymarket-agent
+        annotations:
+          summary: "Potential memory leak detected"
+          description: "Memory increasing by >100MB/hour on {{ $labels.instance }}"
+          action: "Investigate memory usage and consider restart"
+
+      # Cache Hit Rate Too Low
+      - alert: LowCacheHitRate
+        expr: |
+          (
+            increase(cache_hits_total[5m])
+            / (increase(cache_hits_total[5m]) + increase(cache_misses_total[5m]))
+          ) < 0.7
+        for: 10m
+        labels:
+          severity: warning
+          service: polymarket-agent
+        annotations:
+          summary: "Low cache hit rate ({{ .Value | humanizePercentage }})"
+          description: "Cache hit rate below 70% on {{ $labels.instance }}"
+          action: "Check cache configuration or invalidation logic"
+
+      # Deployment Failed
+      - alert: DeploymentFailed
+        expr: |
+          changes(app_version[5m]) > 0
+          and on() up{job="polymarket-agent"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: polymarket-agent
+        annotations:
+          summary: "Deployment failed and application is down"
+          description: "Version changed but application is unreachable on {{ $labels.instance }}"
+          action: "Execute rollback procedure immediately"
+
+  - name: infrastructure_alerts
+    interval: 30s
+    rules:
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: |
+          rate(process_cpu_seconds_total[5m]) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          service: polymarket-agent
+        annotations:
+          summary: "High CPU usage ({{ .Value | humanizePercentage }})"
+          description: "CPU usage exceeded 80% for 10 minutes on {{ $labels.instance }}"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: |
+          process_resident_memory_bytes / (1024 * 1024 * 1024) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: polymarket-agent
+        annotations:
+          summary: "High memory usage ({{ .Value | humanize }}GB)"
+          description: "Memory usage exceeded 80% on {{ $labels.instance }}"
+
+      # Application Down
+      - alert: ApplicationDown
+        expr: |
+          up{job="polymarket-agent"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: polymarket-agent
+        annotations:
+          summary: "Polymarket Agent application is down"
+          description: "Application unreachable on {{ $labels.instance }} for 2+ minutes"
+          action: "Check application logs and restart if necessary"
+
+  - name: database_alerts
+    interval: 30s
+    rules:
+      # Database Connection Errors
+      - alert: DatabaseConnectionErrors
+        expr: |
+          increase(db_connection_errors_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Database connection errors detected"
+          description: "{{ .Value }} connection errors in last 5 minutes"
+
+      # Database Query Timeout
+      - alert: DatabaseQueryTimeout
+        expr: |
+          (
+            increase(db_query_timeout_total[5m])
+            / increase(db_queries_total[5m])
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Database query timeouts ({{ .Value | humanizePercentage }} of queries)"
+          description: "More than 10% of queries timing out on {{ $labels.instance }}"
+
+  - name: api_alerts
+    interval: 30s
+    rules:
+      # Polymarket API Timeout
+      - alert: PolymarketAPITimeout
+        expr: |
+          (
+            increase(api_request_timeout_total{endpoint=~"polymarket.*"}[5m])
+            / increase(api_requests_total{endpoint=~"polymarket.*"}[5m])
+          ) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          service: polymarket-agent
+        annotations:
+          summary: "Polymarket API timeout rate high ({{ .Value | humanizePercentage }})"
+          description: "Timeouts on {{ $labels.endpoint }} exceeded 20%"
+
+      # Polymarket API Error Rate
+      - alert: PolymarketAPIErrorRate
+        expr: |
+          (
+            increase(api_request_errors_total{endpoint=~"polymarket.*"}[5m])
+            / increase(api_requests_total{endpoint=~"polymarket.*"}[5m])
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: polymarket-agent
+        annotations:
+          summary: "Polymarket API error rate high ({{ .Value | humanizePercentage }})"
+          description: "Error rate on {{ $labels.endpoint }} exceeded 10%"

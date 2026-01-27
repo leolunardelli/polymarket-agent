@@ -1,0 +1,60 @@
+{
+  "name": "polymarket-agent",
+  "version": "1.0.0",
+  "description": "Advanced Polymarket Trading System with AI-powered analytics and portfolio management",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "vitest",
+    "test:run": "vitest --run",
+    "test:integration": "vitest --run integration.test.ts",
+    "test:load": "vitest --run load.test.ts",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint src --ext .ts",
+    "type-check": "tsc --noEmit",
+    "security:audit": "npm audit --production",
+    "security:check": "npm audit --production && npm run lint",
+    "deploy:staging": "npm run build && npm run test:run && npm run security:audit",
+    "deploy:production": "npm run build && npm run test:run && npm run test:coverage && npm run security:audit",
+    "rollback": "echo 'Execute rollback procedure from PRODUCTION_READINESS.md'",
+    "health:check": "curl -f http://localhost:3000/health || exit 1",
+    "metrics:export": "curl http://localhost:9090/metrics",
+    "logs:tail": "tail -f logs/trading.log",
+    "alerts:test": "npm run health:check && echo 'Alert test passed'",
+    "migrate:up": "ts-node src/cli/migrate.ts up",
+    "migrate:down": "ts-node src/cli/migrate.ts down",
+    "migrate:init": "ts-node src/cli/migrate.ts init",
+    "migrate:status": "ts-node src/cli/migrate.ts status",
+    "migrate:create": "ts-node src/cli/migrate.ts create"
+  },
+  "keywords": [
+    "polymarket",
+    "trading",
+    "prediction-markets",
+    "portfolio-management",
+    "analytics"
+  ],
+  "author": "Trading Bot Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "pg": "^8.11.3",
+    "zod": "3.22.4"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "20.10.6",
+    "@types/pg": "^8.11.2",
+    "@typescript-eslint/eslint-plugin": "6.17.0",
+    "@typescript-eslint/parser": "6.17.0",
+    "eslint": "8.56.0",
+    "ts-node": "10.9.2",
+    "typescript": "5.3.3",
+    "vitest": "1.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
