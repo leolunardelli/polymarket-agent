@@ -4,7 +4,7 @@
     "buildCommand": "echo 'Using pre-compiled dist folder'"
   },
   "deploy": {
-    "startCommand": "node dist/dashboard-server.js",
+    "startCommand": "node dist/railway-server.js",
     "restartPolicyType": "always",
     "restartPolicyMaxRetries": 10,
     "healthcheckPath": "/health",

@@ -1,28 +1,28 @@
 {
-  "timestamp": "2026-01-31T14:35:52.670Z",
+  "timestamp": "2026-01-31T15:29:06.234Z",
   "testInfo": {
     "startTime": "2026-01-27T23:14:00.295Z",
     "endTime": "2026-02-03T23:14:00.295Z",
-    "elapsedHours": "89.36",
-    "remainingHours": "78.64",
-    "percentComplete": "53.18",
+    "elapsedHours": "88.25",
+    "remainingHours": "79.75",
+    "percentComplete": "52.53",
     "status": "running"
   },
   "performance": {
     "startBalance": 10000,
-    "currentBalance": 9842.50,
-    "totalValue": 10847.32,
-    "unrealizedPnL": 1004.82,
-    "realizedPnL": 157.50,
-    "totalPnL": 847.32,
-    "returnPercent": "8.47",
-    "winRate": "58.33",
-    "maxDrawdown": "3.2"
+    "currentBalance": 9842.5,
+    "totalValue": 12421.89,
+    "unrealizedPnL": 79.25600000000009,
+    "realizedPnL": 157.5,
+    "totalPnL": 236.75600000000009,
+    "returnPercent": "24.22",
+    "winRate": "100.00",
+    "maxDrawdown": "0.00"
   },
   "activity": {
-    "totalTrades": 24,
-    "winningTrades": 14,
-    "losingTrades": 10,
+    "totalTrades": 0,
+    "winningTrades": 1,
+    "losingTrades": 0,
     "openPositions": 5,
     "marketsAnalyzed": 527,
     "cyclesCompleted": 1072
@@ -33,7 +33,7 @@
       "quantity": 3623,
       "entryPrice": 0.138,
       "currentPrice": 0.142,
-      "pnl": 145.92,
+      "pnl": 14.491999999999962,
       "pnlPercent": "2.90"
     },
     {
@@ -41,7 +41,7 @@
       "quantity": 2403,
       "entryPrice": 0.208,
       "currentPrice": 0.212,
-      "pnl": 95.32,
+      "pnl": 9.612000000000023,
       "pnlPercent": "1.92"
     },
     {
@@ -49,15 +49,15 @@
       "quantity": 1572,
       "entryPrice": 0.318,
       "currentPrice": 0.325,
-      "pnl": 110.04,
+      "pnl": 11.004000000000019,
       "pnlPercent": "2.20"
     },
     {
       "symbol": "Seahawks Super Bowl_Yes",
       "quantity": 1564,
-      "entryPrice": 0.320,
+      "entryPrice": 0.32,
       "currentPrice": 0.335,
-      "pnl": 235.60,
+      "pnl": 23.460000000000036,
       "pnlPercent": "4.69"
     },
     {
@@ -65,7 +65,7 @@
       "quantity": 3448,
       "entryPrice": 0.145,
       "currentPrice": 0.151,
-      "pnl": 207.04,
+      "pnl": 20.688000000000045,
       "pnlPercent": "4.14"
     }
   ],

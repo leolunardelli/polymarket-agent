@@ -1,1 +1,1 @@
-web: node dist/dashboard-server.js
+web: node dist/railway-server.js
