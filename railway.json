@@ -1,9 +1,13 @@
 {
   "build": {
-    "builder": "nixpacks"
+    "builder": "nixpacks",
+    "buildCommand": "echo 'Using pre-compiled dist folder'"
   },
   "deploy": {
+    "startCommand": "node dist/dashboard-server.js",
     "restartPolicyType": "always",
-    "restartPolicyMaxRetries": 10
+    "restartPolicyMaxRetries": 10,
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 10
   }
 }

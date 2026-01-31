@@ -4,7 +4,7 @@
   "description": "Advanced Polymarket Trading System with AI-powered analytics and portfolio management",
   "main": "dist/index.js",
   "scripts": {
-    "build": "echo 'Using pre-compiled dist/'",
+    "build": "tsc",
     "start": "node dist/dashboard-server.js",
     "start:live": "node dist/dashboard-server.js",
     "dev": "ts-node src/index.ts",

@@ -38,6 +38,10 @@ const app = (0, express_1.default)();
 const PORT = parseInt(process.env.PORT || '3001', 10);
 // Serve static files
 app.use(express_1.default.static(path.join(__dirname, '../public')));
+// Health check endpoint for monitoring/Railway
+app.get('/health', (req, res) => {
+    res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
 // API endpoint for real-time data
 app.get('/api/status', (req, res) => {
     try {
