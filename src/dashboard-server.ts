@@ -9,7 +9,7 @@ import * as path from 'path';
 import { logger } from './logger';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = parseInt(process.env.PORT || '3001', 10);
 
 // Serve static files
 app.use(express.static(path.join(__dirname, '../public')));
@@ -52,8 +52,12 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/dashboard.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`\n✨ Dashboard running at http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n✨ Dashboard running at http://0.0.0.0:${PORT}`);
   console.log('🎀 Open in browser to view your kawaii trading dashboard!\n');
   logger.info('Dashboard server started', { port: PORT });
+}).on('error', (err) => {
+  console.error('Dashboard server error:', err);
+  logger.error('Dashboard server failed to start', { error: err.message });
+  process.exit(1);
 });

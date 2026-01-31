@@ -6,7 +6,7 @@
   "scripts": {
     "build": "node -e \"const fs=require('fs');const path=require('path');const cp=require('child_process');function findTs(dir){const candidate=path.join(dir,'tsconfig.json');if(fs.existsSync(candidate))return candidate;const parent=path.dirname(dir);if(parent===dir)return null;return findTs(parent);}const tsconfig=findTs(process.cwd());if(!tsconfig){console.error('tsconfig.json not found');process.exit(1);}const tsc=require.resolve('typescript/bin/tsc');const r=cp.spawnSync(process.execPath,[tsc,'-p',tsconfig],{stdio:'inherit'});process.exit(r.status??1);\"",
     "start": "node dist/index.js",
-    "start:live": "node dist/week-test.js & node dist/dashboard-server.js",
+    "start:live": "(node dist/week-test.js > /dev/null 2>&1 &) && node dist/dashboard-server.js",
     "dev": "ts-node src/index.ts",
     "test": "vitest",
     "test:run": "vitest --run",
