@@ -45,12 +45,13 @@ const CONFIG = {
     virtualBalance: 10000,
     testDurationMs: 7 * 24 * 60 * 60 * 1000, // 7 days
     checkIntervalMs: 5 * 60 * 1000, // Check markets every 5 minutes
-    reportIntervalMs: 60 * 60 * 1000, // Report every hour
+    reportIntervalMs: 5 * 60 * 1000, // Save report every 5 minutes (same as check)
     maxPositionSize: 500, // Max $500 per position
     minProbability: 0.1, // Don't buy below 10%
     maxProbability: 0.9, // Don't buy above 90%
     targetProfitPercent: 20, // Take profit at 20% gain
     stopLossPercent: 15, // Stop loss at 15% loss
+    maxConcurrentPositions: 10, // Max 10 open positions at once
     logFile: 'test-results.json',
 };
 class WeekTest {
@@ -244,7 +245,8 @@ class WeekTest {
             await this.simulator.simulateBuy(tokenId, symbol, quantity, price);
             this.state.tradesExecuted++;
             this.marketPriceCache.set(tokenId, { price, timestamp: Date.now() });
-            logger_1.logger.info('Trade executed', {
+            console.log('Trade executed');
+            logger_1.logger.info('Virtual buy executed', {
                 market: market.question.slice(0, 50),
                 outcome: market.outcomes[analysis.outcomeIndex],
                 quantity,
@@ -391,7 +393,7 @@ class WeekTest {
             await this.checkExitSignals(markets);
             // Analyze markets for new trades
             const portfolio = this.simulator.getPortfolioState();
-            const maxNewPositions = 5 - portfolio.positions.length; // Max 5 concurrent positions
+            const maxNewPositions = CONFIG.maxConcurrentPositions - portfolio.positions.length;
             if (maxNewPositions > 0) {
                 let newTrades = 0;
                 for (const market of markets) {
@@ -408,10 +410,8 @@ class WeekTest {
                     }
                 }
             }
-            // Generate report if interval passed
-            if (Date.now() - this.state.lastReportTime.getTime() >= CONFIG.reportIntervalMs) {
-                this.generateReport();
-            }
+            // Always save report after each cycle so dashboard shows latest data
+            this.generateReport();
         }
         catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
