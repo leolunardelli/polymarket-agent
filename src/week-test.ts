@@ -60,24 +60,85 @@ class WeekTest {
   private api: PolymarketAPI;
   private state: TestState;
   private marketPriceCache: Map<string, { price: number; timestamp: number }> = new Map();
+  private resumedFromSave: boolean = false;
 
-  constructor() {
-    this.simulator = new TradingSimulator(CONFIG.virtualBalance);
+  constructor(resume: boolean = false) {
     this.analyzer = new LeaderboardAnalyzer();
     this.api = new PolymarketAPI();
     
-    const now = new Date();
-    this.state = {
-      startTime: now,
-      endTime: new Date(now.getTime() + CONFIG.testDurationMs),
-      currentCycle: 0,
-      totalCycles: Math.floor(CONFIG.testDurationMs / CONFIG.checkIntervalMs),
-      tradesExecuted: 0,
-      marketsAnalyzed: 0,
-      lastReportTime: now,
-      status: 'running',
-      errors: [],
-    };
+    // Try to load previous state if resuming
+    const savedState = resume ? this.loadSavedState() : null;
+    
+    if (savedState && resume) {
+      // Resume from saved state
+      this.simulator = new TradingSimulator(savedState.performance.startBalance);
+      this.resumedFromSave = true;
+      
+      // Restore simulator state
+      this.simulator.restoreState({
+        balance: savedState.performance.currentBalance,
+        positions: savedState.positions.map((p: any) => ({
+          tokenId: p.symbol.includes('_') ? p.symbol : `unknown_${p.symbol}`,
+          symbol: p.symbol,
+          quantity: p.quantity,
+          entryPrice: p.entryPrice,
+          currentPrice: p.currentPrice,
+        })),
+        realizedPnL: savedState.performance.realizedPnL,
+        trades: savedState.activity.totalTrades,
+        winningTrades: savedState.activity.winningTrades,
+        losingTrades: savedState.activity.losingTrades,
+      });
+      
+      // Restore test state
+      this.state = {
+        startTime: new Date(savedState.testInfo.startTime),
+        endTime: new Date(savedState.testInfo.endTime),
+        currentCycle: savedState.activity.cyclesCompleted,
+        totalCycles: Math.floor(CONFIG.testDurationMs / CONFIG.checkIntervalMs),
+        tradesExecuted: savedState.activity.totalTrades,
+        marketsAnalyzed: savedState.activity.marketsAnalyzed,
+        lastReportTime: new Date(),
+        status: 'running',
+        errors: savedState.errors || [],
+      };
+      
+      console.log('📂 Resumed from saved state');
+    } else {
+      // Fresh start
+      this.simulator = new TradingSimulator(CONFIG.virtualBalance);
+      
+      const now = new Date();
+      this.state = {
+        startTime: now,
+        endTime: new Date(now.getTime() + CONFIG.testDurationMs),
+        currentCycle: 0,
+        totalCycles: Math.floor(CONFIG.testDurationMs / CONFIG.checkIntervalMs),
+        tradesExecuted: 0,
+        marketsAnalyzed: 0,
+        lastReportTime: now,
+        status: 'running',
+        errors: [],
+      };
+    }
+  }
+
+  /**
+   * Load saved state from file
+   */
+  private loadSavedState(): any {
+    try {
+      const reportPath = path.join(process.cwd(), CONFIG.logFile);
+      if (fs.existsSync(reportPath)) {
+        const data = fs.readFileSync(reportPath, 'utf-8');
+        return JSON.parse(data);
+      }
+    } catch (error) {
+      logger.warn('Could not load saved state', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+    return null;
   }
 
   /**
@@ -423,19 +484,34 @@ class WeekTest {
    */
   async start(): Promise<void> {
     console.log('\n' + '='.repeat(60));
-    console.log('🚀 STARTING 1-WEEK VIRTUAL TRADING TEST');
+    if (this.resumedFromSave) {
+      console.log('🔄 RESUMING 1-WEEK VIRTUAL TRADING TEST');
+    } else {
+      console.log('🚀 STARTING 1-WEEK VIRTUAL TRADING TEST');
+    }
     console.log('='.repeat(60));
     console.log(`📅 Start: ${this.state.startTime.toISOString()}`);
     console.log(`📅 End:   ${this.state.endTime.toISOString()}`);
-    console.log(`💵 Virtual Balance: $${CONFIG.virtualBalance}`);
+    
+    const remainingMs = this.state.endTime.getTime() - Date.now();
+    const remainingHours = Math.max(0, remainingMs / (1000 * 60 * 60)).toFixed(2);
+    console.log(`⏱️  Remaining: ${remainingHours} hours`);
+    
+    const portfolio = this.simulator.getPortfolioState();
+    console.log(`💵 Current Balance: $${portfolio.balance.toFixed(2)}`);
+    console.log(`📂 Open Positions: ${portfolio.positions.length}`);
+    console.log(`🔄 Cycles Completed: ${this.state.currentCycle}`);
     console.log(`⏱️  Check Interval: ${CONFIG.checkIntervalMs / 1000 / 60} minutes`);
     console.log(`📊 Report Interval: ${CONFIG.reportIntervalMs / 1000 / 60} minutes`);
     console.log('='.repeat(60) + '\n');
 
     logger.info('Week test started', {
+      resumed: this.resumedFromSave,
       startTime: this.state.startTime.toISOString(),
       endTime: this.state.endTime.toISOString(),
-      virtualBalance: CONFIG.virtualBalance,
+      remainingHours,
+      currentBalance: portfolio.balance,
+      openPositions: portfolio.positions.length,
     });
 
     // Initial report
@@ -489,8 +565,11 @@ class WeekTest {
   }
 }
 
+// Check for --resume flag
+const shouldResume = process.argv.includes('--resume');
+
 // Run the test
-const test = new WeekTest();
+const test = new WeekTest(shouldResume);
 
 // Handle graceful shutdown
 process.on('SIGINT', () => {

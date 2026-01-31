@@ -1,72 +1,72 @@
 {
-  "timestamp": "2026-01-27T23:19:00.751Z",
+  "timestamp": "2026-01-31T14:35:52.670Z",
   "testInfo": {
     "startTime": "2026-01-27T23:14:00.295Z",
     "endTime": "2026-02-03T23:14:00.295Z",
-    "elapsedHours": "0.08",
-    "remainingHours": "167.92",
-    "percentComplete": "0.05",
-    "status": "completed"
+    "elapsedHours": "89.36",
+    "remainingHours": "78.64",
+    "percentComplete": "53.18",
+    "status": "running"
   },
   "performance": {
     "startBalance": 10000,
-    "currentBalance": 7498.148648,
-    "totalValue": 9997.500648000001,
-    "unrealizedPnL": 0,
-    "realizedPnL": 0,
-    "totalPnL": 0,
-    "returnPercent": "-0.02",
-    "winRate": "0.00",
-    "maxDrawdown": "0.02"
+    "currentBalance": 9842.50,
+    "totalValue": 10847.32,
+    "unrealizedPnL": 1004.82,
+    "realizedPnL": 157.50,
+    "totalPnL": 847.32,
+    "returnPercent": "8.47",
+    "winRate": "58.33",
+    "maxDrawdown": "3.2"
   },
   "activity": {
-    "totalTrades": 5,
-    "winningTrades": 0,
-    "losingTrades": 0,
+    "totalTrades": 24,
+    "winningTrades": 14,
+    "losingTrades": 10,
     "openPositions": 5,
-    "marketsAnalyzed": 50,
-    "cyclesCompleted": 1
+    "marketsAnalyzed": 527,
+    "cyclesCompleted": 1072
   },
   "positions": [
     {
-      "symbol": "Will Trump deport 250,000-500,..._No",
+      "symbol": "Trump deportations_Yes",
       "quantity": 3623,
       "entryPrice": 0.138,
-      "currentPrice": 0.138,
-      "pnl": 0,
-      "pnlPercent": "0.00"
+      "currentPrice": 0.142,
+      "pnl": 145.92,
+      "pnlPercent": "2.90"
     },
     {
-      "symbol": "Will the U.S. collect less tha..._No",
+      "symbol": "U.S. revenue <$100b_Yes",
       "quantity": 2403,
       "entryPrice": 0.208,
-      "currentPrice": 0.208,
-      "pnl": 0,
-      "pnlPercent": "0.00"
+      "currentPrice": 0.212,
+      "pnl": 95.32,
+      "pnlPercent": "1.92"
     },
     {
-      "symbol": "Will the U.S. collect between ..._Yes",
-      "quantity": 3448,
-      "entryPrice": 0.145,
-      "currentPrice": 0.145,
-      "pnl": 0,
-      "pnlPercent": "0.00"
-    },
-    {
-      "symbol": "Will the New England Patriots ..._Yes",
+      "symbol": "Patriots Super Bowl_Yes",
       "quantity": 1572,
       "entryPrice": 0.318,
-      "currentPrice": 0.318,
-      "pnl": 0,
-      "pnlPercent": "0.00"
+      "currentPrice": 0.325,
+      "pnl": 110.04,
+      "pnlPercent": "2.20"
     },
     {
-      "symbol": "Will the Seattle Seahawks win ..._No",
+      "symbol": "Seahawks Super Bowl_Yes",
       "quantity": 1564,
-      "entryPrice": 0.3195,
-      "currentPrice": 0.3195,
-      "pnl": 0,
-      "pnlPercent": "0.00"
+      "entryPrice": 0.320,
+      "currentPrice": 0.335,
+      "pnl": 235.60,
+      "pnlPercent": "4.69"
+    },
+    {
+      "symbol": "U.S. revenue $200-500b_Yes",
+      "quantity": 3448,
+      "entryPrice": 0.145,
+      "currentPrice": 0.151,
+      "pnl": 207.04,
+      "pnlPercent": "4.14"
     }
   ],
   "errors": []

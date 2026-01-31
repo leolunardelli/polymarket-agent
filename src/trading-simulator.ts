@@ -389,6 +389,68 @@ class TradingSimulator {
   getTradesByType(side: 'BUY' | 'SELL'): VirtualTrade[] {
     return this.trades.filter(t => t.side === side);
   }
+
+  /**
+   * Restore simulator state from saved data (for resume functionality)
+   */
+  restoreState(state: {
+    balance: number;
+    realizedPnL: number;
+    winningTrades: number;
+    losingTrades: number;
+    trades: VirtualTrade[];
+    positions: Array<{
+      symbol: string;
+      tokenId?: string;
+      quantity: number;
+      entryPrice: number;
+      currentPrice: number;
+      pnl?: number;
+      pnlPercent?: string;
+      pnlPercentage?: number;
+    }>;
+  }): void {
+    this.balance = state.balance;
+    
+    // Restore positions
+    this.positions.clear();
+    for (const pos of state.positions) {
+      // Calculate PnL from prices if not provided
+      const costBasis = pos.quantity * pos.entryPrice;
+      const currentValue = pos.quantity * pos.currentPrice;
+      const calculatedPnL = currentValue - costBasis;
+      const calculatedPnLPercent = costBasis > 0 ? ((currentValue - costBasis) / costBasis) * 100 : 0;
+      
+      const position: VirtualPosition = {
+        tokenId: pos.tokenId || pos.symbol,
+        symbol: pos.symbol,
+        quantity: pos.quantity,
+        entryPrice: pos.entryPrice,
+        currentPrice: pos.currentPrice,
+        pnl: pos.pnl ?? calculatedPnL,
+        pnlPercentage: pos.pnlPercentage ?? (parseFloat(pos.pnlPercent || '0') || calculatedPnLPercent),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      this.positions.set(position.tokenId, position);
+    }
+    
+    // Restore trades if available
+    if (state.trades && Array.isArray(state.trades)) {
+      this.trades = state.trades;
+    }
+    
+    // Restore realized PnL history
+    if (state.realizedPnL !== undefined) {
+      this.realizedPnLHistory = [state.realizedPnL];
+    }
+    
+    logger.info('TradingSimulator state restored', {
+      balance: this.balance,
+      positions: this.positions.size,
+      trades: this.trades.length,
+    });
+  }
 }
 
 export { TradingSimulator };

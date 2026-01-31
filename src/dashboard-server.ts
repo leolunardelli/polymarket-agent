@@ -9,7 +9,7 @@ import * as path from 'path';
 import { logger } from './logger';
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3001;
 
 // Serve static files
 app.use(express.static(path.join(__dirname, '../public')));
