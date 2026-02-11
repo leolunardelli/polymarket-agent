@@ -83,11 +83,19 @@ declare class LeaderboardAnalyzer {
     private snapshots;
     private readonly cacheTTL;
     private knownTraders;
+    private traderMetricsCache;
+    private readonly traderCacheTTL;
+    private discoveryDone;
     constructor();
     /**
      * Add trader addresses to track
      */
     addTrackedTraders(addresses: string[]): void;
+    /**
+     * P2 #10: Discover active high-volume traders from the activity API.
+     * Fetches recent trades and identifies unique wallets with many transactions.
+     */
+    discoverTopTraders(minTrades?: number): Promise<string[]>;
     /**
      * Fetch positions for a trader from the REAL Data API
      */

@@ -28,8 +28,10 @@ const CONFIG = {
   checkIntervalMs: 5 * 60 * 1000, // Check markets every 5 minutes
   reportIntervalMs: 5 * 60 * 1000, // Save report every 5 minutes (same as check)
   maxPositionSize: 300, // Max $300 per position (was $500 - too aggressive)
-  minProbability: 0.20, // Don't buy below 20% (was 10% - too many long-shots)
-  maxProbability: 0.80, // Don't buy above 80% (was 90% - poor risk/reward)
+  minProbability: 0.15, // Don't buy below 15%
+  maxProbability: 0.97, // Allow high-confidence "safe bets" up to 97%
+  safeBetThreshold: 0.90, // Price >= 90% treated as "safe bet" tier
+  safeBetMaxPositionSize: 600, // Safe bets get up to $600 (higher because lower return per share)
   targetProfitPercent: 12, // Take profit at 12% gain (was 20% - never triggered)
   stopLossPercent: 8, // Stop loss at 8% loss (was 15% - too much risk)
   maxConcurrentPositions: 8, // Max 8 open positions at once (was 10)
@@ -46,7 +48,7 @@ const CONFIG = {
   // NEW: Trailing stop
   trailingStopPercent: 5, // Trailing stop at 5% from peak
   // NEW: Better analysis thresholds
-  minConfidence: 70, // Min confidence to trade (was effectively 50)
+  minConfidence: 65, // Min confidence to trade (was 70 - impossible without bonuses)
   minVolume: 50000, // Min market volume $50k (was $1k)
   minLiquidity: 10000, // Min market liquidity $10k (was 0)
   // NEW: Drawdown circuit breaker
@@ -110,6 +112,7 @@ class WeekTest {
     this.strategy = createDefaultStrategy({
       minProbability: CONFIG.minProbability,
       maxProbability: CONFIG.maxProbability,
+      safeBetThreshold: CONFIG.safeBetThreshold,
       minVolume: CONFIG.minVolume,
       minLiquidity: CONFIG.minLiquidity,
       minConfidence: CONFIG.minConfidence,
@@ -212,45 +215,60 @@ class WeekTest {
    */
   private async fetchActiveMarkets(): Promise<MarketData[]> {
     try {
-      // P0 #1: Use PolymarketAPI instead of raw fetch()
+      // Fetch a large batch — the API sorts volume as a string (alphabetically)
+      // so we fetch many and sort numerically client-side
       const rawMarkets = await this.api.getMarkets({
         closed: false,
         limit: CONFIG.marketFetchLimit,
-        order: 'volume',
-        ascending: false,
+        active: true,
       });
 
       const validMarkets: MarketData[] = [];
 
       for (const m of rawMarkets) {
+        // Skip malformed entries (API sometimes returns partial objects)
+        if (!m.conditionId) continue;
         if (!m.active || m.closed) continue;
 
-        // Extract prices from tokens array (PolymarketAPI validates via Zod)
-        const prices = m.tokens.map(t => t.price);
-        if (prices.length < 2 || prices[0] <= 0 || prices[0] >= 1) continue;
+        // Parse outcome prices from JSON string array
+        const outcomePrices = (m.outcomePrices || []).map((p: string) => parseFloat(p));
+        if (outcomePrices.length < 2 || isNaN(outcomePrices[0]) || outcomePrices[0] <= 0 || outcomePrices[0] >= 1) continue;
 
-        const outcomes = m.tokens.map(t => t.outcome);
-        const tokenIds = m.tokens.map(t => t.token_id);
+        // Parse token IDs and outcome labels
+        const outcomes = m.outcomes || [];
+        const tokenIds = m.clobTokenIds || [];
+        if (tokenIds.length === 0) continue; // Need tokens for trading
 
-        const volume = m.volume_num ?? m.volume ?? 0;
-        const liquidity = m.liquidity_num ?? m.liquidity ?? 0;
-        if (volume < 10000) continue; // Skip low volume
+        const volume = m.volumeNum ?? m.volume ?? 0;
+        const liquidity = m.liquidityNum ?? m.liquidity ?? 0;
+        if (volume < 1000) continue; // Lower threshold — sort client-side
 
         validMarkets.push({
-          conditionId: m.condition_id,
-          questionId: m.question_id || m.condition_id,
+          conditionId: m.conditionId,
+          questionId: m.questionID || m.conditionId,
           question: m.question || 'Unknown',
           outcomes,
-          outcomePrices: prices,
+          outcomePrices,
           volume,
           liquidity,
-          endDate: m.end_date_iso || '',
+          endDate: m.endDateIso || m.endDate || '',
           tokenIds,
         });
       }
 
-      logger.debug('Fetched active markets via PolymarketAPI', { count: validMarkets.length });
-      return validMarkets;
+      // Sort by volume descending (the API can't sort numerically)
+      validMarkets.sort((a, b) => b.volume - a.volume);
+
+      // Keep top markets only
+      const topMarkets = validMarkets.slice(0, 50);
+
+      logger.info('Fetched active markets via PolymarketAPI', { 
+        raw: rawMarkets.length, 
+        valid: validMarkets.length, 
+        top: topMarkets.length,
+        topVolume: topMarkets[0]?.volume,
+      });
+      return topMarkets;
     } catch (error) {
       logger.error('Failed to fetch markets', {
         error: error instanceof Error ? error.message : String(error),
@@ -272,6 +290,7 @@ class WeekTest {
         startTs: now - 86400, // 24 h ago
         endTs: now,
         interval: 'hour',
+        market: market.conditionId, // conditionId required by CLOB prices-history
       });
       if (history.length >= 2) {
         const oldest = history[0].price;
@@ -411,12 +430,16 @@ class WeekTest {
       return;
     }
 
-    // IMPROVEMENT: Scale position size based on confidence (Kelly-inspired)
+    // Scale position size — safe bets get bigger positions (lower return per share, so more shares)
+    const isSafeBet = price >= CONFIG.safeBetThreshold;
+    const maxPositionForTier = isSafeBet ? CONFIG.safeBetMaxPositionSize : CONFIG.maxPositionSize;
+    const capitalPercent = isSafeBet ? 0.25 : 0.15; // safe bets can use 25% of available capital
+
     const confidenceFactor = Math.min(analysis.confidence / 100, 1);
     const maxSpend = Math.min(
-      CONFIG.maxPositionSize,
-      availableForTrading * 0.15, // Max 15% of available capital per trade
-      availableForTrading * confidenceFactor * 0.2 // Scale with confidence
+      maxPositionForTier,
+      availableForTrading * capitalPercent,
+      availableForTrading * confidenceFactor * (isSafeBet ? 0.35 : 0.2)
     );
     const quantity = Math.floor(maxSpend / price);
 

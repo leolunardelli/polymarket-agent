@@ -69,6 +69,7 @@ export interface Strategy {
 export interface DefaultStrategyConfig {
   minProbability: number;
   maxProbability: number;
+  safeBetThreshold: number;       // Price above this = "safe bet" tier
   minVolume: number;
   minLiquidity: number;
   minConfidence: number;
@@ -105,30 +106,52 @@ export class DefaultStrategy implements Strategy {
       }
     }
 
-    // ── Spread gate (P0 #3) ──
-    if (market.spread !== undefined && market.spread > 5) {
+    // ── Spread gate (P0 #3) — relaxed for safe bets ──
+    const isSafeBet = price >= this.cfg.safeBetThreshold;
+    const spreadLimit = isSafeBet ? 8 : 5; // safe bets tolerate wider spread
+    if (market.spread !== undefined && market.spread > spreadLimit) {
       return { shouldTrade: false, side: 'BUY', outcomeIndex: 0, reason: `spread too wide: ${market.spread.toFixed(1)}%`, confidence: 0 };
     }
 
-    // ── Momentum gate (P0 #2) ──
-    if (market.momentum !== undefined && market.momentum < -10) {
+    // ── Momentum gate (P0 #2) — relaxed for safe bets ──
+    const momentumFloor = isSafeBet ? -20 : -10; // safe bets tolerate more decline
+    if (market.momentum !== undefined && market.momentum < momentumFloor) {
       return { shouldTrade: false, side: 'BUY', outcomeIndex: 0, reason: `declining momentum: ${market.momentum.toFixed(1)}%`, confidence: 0 };
     }
 
     // ── Scoring ──
     const volumeScore = Math.min(market.volume / 500000, 1);
     const liquidityScore = Math.min(market.liquidity / 100000, 1);
-    const priceScore = price >= 0.30 && price <= 0.70
-      ? 1 - Math.abs(price - 0.5) * 2
-      : (1 - Math.abs(price - 0.5) * 2) * 0.5;
     const vlRatio = market.liquidity > 0 ? Math.min(market.volume / market.liquidity / 10, 1) : 0;
 
-    let confidence = (
-      volumeScore * 0.22 +
-      liquidityScore * 0.18 +
-      priceScore * 0.18 +
-      vlRatio * 0.12
-    ) * 100;
+    let confidence: number;
+
+    if (isSafeBet) {
+      // ── Safe Bet Tier (price >= 0.80) ──
+      // High probability markets are likely to resolve YES.
+      // Confidence based on how high the probability is + volume/liquidity.
+      const safetyScore = (price - this.cfg.safeBetThreshold) / (this.cfg.maxProbability - this.cfg.safeBetThreshold);
+      confidence = (
+        safetyScore * 0.35 +       // higher price = more certain
+        volumeScore * 0.25 +       // high volume confirms market conviction
+        liquidityScore * 0.20 +    // good liquidity means easy entry/exit
+        vlRatio * 0.10
+      ) * 100;
+      // Flat bonus: safe bets start at a higher baseline
+      confidence += 15;
+    } else {
+      // ── Standard Tier (price 0.15–0.80) ──
+      const priceScore = price >= 0.30 && price <= 0.70
+        ? 1 - Math.abs(price - 0.5) * 2
+        : (1 - Math.abs(price - 0.5) * 2) * 0.5;
+
+      confidence = (
+        volumeScore * 0.22 +
+        liquidityScore * 0.18 +
+        priceScore * 0.18 +
+        vlRatio * 0.12
+      ) * 100;
+    }
 
     // Momentum bonus (P0 #2)
     if (market.momentum !== undefined) {
@@ -154,9 +177,20 @@ export class DefaultStrategy implements Strategy {
 
     confidence = Math.max(0, Math.min(100, confidence));
 
-    if (confidence > this.cfg.minConfidence) {
-      // SELL signal for overpriced markets (P1 #3)
-      if (price > 0.75 && (market.momentum ?? 0) < -3) {
+    if (confidence >= this.cfg.minConfidence) {
+      if (isSafeBet) {
+        // Safe bet: always BUY the YES outcome (index 0) — we're betting it resolves YES
+        return {
+          shouldTrade: true,
+          side: 'BUY',
+          outcomeIndex: 0,
+          reason: `🛡️ Safe bet (price=${price.toFixed(3)}, vol=$${market.volume.toFixed(0)})`,
+          confidence,
+        };
+      }
+
+      // SELL signal for overpriced markets (P1 #3) — only in standard tier
+      if (price > 0.70 && (market.momentum ?? 0) < -3) {
         return {
           shouldTrade: true,
           side: 'SELL',

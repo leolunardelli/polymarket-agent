@@ -6,114 +6,79 @@ declare class APIError extends Error {
     constructor(statusCode: number, endpoint: string, message: string, retryable?: boolean);
 }
 declare const MarketSchema: z.ZodObject<{
-    condition_id: z.ZodString;
-    question: z.ZodString;
+    conditionId: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    question: z.ZodDefault<z.ZodOptional<z.ZodString>>;
     description: z.ZodOptional<z.ZodString>;
-    end_date_iso: z.ZodString;
-    game_start_time: z.ZodOptional<z.ZodString>;
-    question_id: z.ZodString;
-    market_slug: z.ZodString;
-    min_incentive_size: z.ZodOptional<z.ZodNumber>;
-    max_incentive_spread: z.ZodOptional<z.ZodNumber>;
-    active: z.ZodBoolean;
-    closed: z.ZodBoolean;
-    archived: z.ZodBoolean;
-    accepting_orders: z.ZodBoolean;
-    seconds_delay: z.ZodNumber;
+    endDate: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    endDateIso: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    gameStartTime: z.ZodOptional<z.ZodString>;
+    questionID: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    slug: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    active: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    closed: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    archived: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    acceptingOrders: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    secondsDelay: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
     icon: z.ZodOptional<z.ZodString>;
-    outcomes: z.ZodArray<z.ZodObject<{
-        price: z.ZodNumber;
-    }, "strip", z.ZodTypeAny, {
-        price: number;
-    }, {
-        price: number;
-    }>, "many">;
-    tokens: z.ZodArray<z.ZodObject<{
-        token_id: z.ZodString;
-        outcome: z.ZodString;
-        price: z.ZodNumber;
-        winner: z.ZodOptional<z.ZodBoolean>;
-    }, "strip", z.ZodTypeAny, {
-        price: number;
-        token_id: string;
-        outcome: string;
-        winner?: boolean | undefined;
-    }, {
-        price: number;
-        token_id: string;
-        outcome: string;
-        winner?: boolean | undefined;
-    }>, "many">;
-    volume: z.ZodOptional<z.ZodNumber>;
-    volume_num: z.ZodOptional<z.ZodNumber>;
-    liquidity: z.ZodOptional<z.ZodNumber>;
-    liquidity_num: z.ZodOptional<z.ZodNumber>;
-}, "strip", z.ZodTypeAny, {
-    condition_id: string;
-    question: string;
-    end_date_iso: string;
-    question_id: string;
-    market_slug: string;
-    active: boolean;
-    closed: boolean;
-    archived: boolean;
-    accepting_orders: boolean;
-    seconds_delay: number;
-    outcomes: {
-        price: number;
-    }[];
-    tokens: {
-        price: number;
-        token_id: string;
-        outcome: string;
-        winner?: boolean | undefined;
-    }[];
-    description?: string | undefined;
-    game_start_time?: string | undefined;
-    min_incentive_size?: number | undefined;
-    max_incentive_spread?: number | undefined;
-    icon?: string | undefined;
-    volume?: number | undefined;
-    volume_num?: number | undefined;
-    liquidity?: number | undefined;
-    liquidity_num?: number | undefined;
-}, {
-    condition_id: string;
-    question: string;
-    end_date_iso: string;
-    question_id: string;
-    market_slug: string;
-    active: boolean;
-    closed: boolean;
-    archived: boolean;
-    accepting_orders: boolean;
-    seconds_delay: number;
-    outcomes: {
-        price: number;
-    }[];
-    tokens: {
-        price: number;
-        token_id: string;
-        outcome: string;
-        winner?: boolean | undefined;
-    }[];
-    description?: string | undefined;
-    game_start_time?: string | undefined;
-    min_incentive_size?: number | undefined;
-    max_incentive_spread?: number | undefined;
-    icon?: string | undefined;
-    volume?: number | undefined;
-    volume_num?: number | undefined;
-    liquidity?: number | undefined;
-    liquidity_num?: number | undefined;
-}>;
+    outcomes: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+    outcomePrices: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+    clobTokenIds: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+    volume: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    volumeNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    liquidity: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    liquidityNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    conditionId: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    question: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    description: z.ZodOptional<z.ZodString>;
+    endDate: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    endDateIso: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    gameStartTime: z.ZodOptional<z.ZodString>;
+    questionID: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    slug: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    active: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    closed: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    archived: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    acceptingOrders: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    secondsDelay: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+    icon: z.ZodOptional<z.ZodString>;
+    outcomes: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+    outcomePrices: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+    clobTokenIds: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+    volume: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    volumeNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    liquidity: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    liquidityNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    conditionId: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    question: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    description: z.ZodOptional<z.ZodString>;
+    endDate: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    endDateIso: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    gameStartTime: z.ZodOptional<z.ZodString>;
+    questionID: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    slug: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    active: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    closed: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    archived: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    acceptingOrders: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    secondsDelay: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+    icon: z.ZodOptional<z.ZodString>;
+    outcomes: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+    outcomePrices: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+    clobTokenIds: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+    volume: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    volumeNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    liquidity: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    liquidityNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+}, z.ZodTypeAny, "passthrough">>;
 declare const EventSchema: z.ZodObject<{
     id: z.ZodString;
     slug: z.ZodString;
     title: z.ZodString;
     description: z.ZodOptional<z.ZodString>;
-    start_date_iso: z.ZodOptional<z.ZodString>;
-    end_date_iso: z.ZodOptional<z.ZodString>;
+    startDate: z.ZodOptional<z.ZodString>;
+    endDate: z.ZodOptional<z.ZodString>;
     image: z.ZodOptional<z.ZodString>;
     icon: z.ZodOptional<z.ZodString>;
     active: z.ZodBoolean;
@@ -121,203 +86,242 @@ declare const EventSchema: z.ZodObject<{
     archived: z.ZodBoolean;
     restricted: z.ZodOptional<z.ZodBoolean>;
     markets: z.ZodArray<z.ZodObject<{
-        condition_id: z.ZodString;
-        question: z.ZodString;
+        conditionId: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        question: z.ZodDefault<z.ZodOptional<z.ZodString>>;
         description: z.ZodOptional<z.ZodString>;
-        end_date_iso: z.ZodString;
-        game_start_time: z.ZodOptional<z.ZodString>;
-        question_id: z.ZodString;
-        market_slug: z.ZodString;
-        min_incentive_size: z.ZodOptional<z.ZodNumber>;
-        max_incentive_spread: z.ZodOptional<z.ZodNumber>;
-        active: z.ZodBoolean;
-        closed: z.ZodBoolean;
-        archived: z.ZodBoolean;
-        accepting_orders: z.ZodBoolean;
-        seconds_delay: z.ZodNumber;
+        endDate: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        endDateIso: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        gameStartTime: z.ZodOptional<z.ZodString>;
+        questionID: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        slug: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        active: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        closed: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        archived: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        acceptingOrders: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        secondsDelay: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
         icon: z.ZodOptional<z.ZodString>;
-        outcomes: z.ZodArray<z.ZodObject<{
-            price: z.ZodNumber;
-        }, "strip", z.ZodTypeAny, {
-            price: number;
-        }, {
-            price: number;
-        }>, "many">;
-        tokens: z.ZodArray<z.ZodObject<{
-            token_id: z.ZodString;
-            outcome: z.ZodString;
-            price: z.ZodNumber;
-            winner: z.ZodOptional<z.ZodBoolean>;
-        }, "strip", z.ZodTypeAny, {
-            price: number;
-            token_id: string;
-            outcome: string;
-            winner?: boolean | undefined;
-        }, {
-            price: number;
-            token_id: string;
-            outcome: string;
-            winner?: boolean | undefined;
-        }>, "many">;
-        volume: z.ZodOptional<z.ZodNumber>;
-        volume_num: z.ZodOptional<z.ZodNumber>;
-        liquidity: z.ZodOptional<z.ZodNumber>;
-        liquidity_num: z.ZodOptional<z.ZodNumber>;
-    }, "strip", z.ZodTypeAny, {
-        condition_id: string;
-        question: string;
-        end_date_iso: string;
-        question_id: string;
-        market_slug: string;
-        active: boolean;
-        closed: boolean;
-        archived: boolean;
-        accepting_orders: boolean;
-        seconds_delay: number;
-        outcomes: {
-            price: number;
-        }[];
-        tokens: {
-            price: number;
-            token_id: string;
-            outcome: string;
-            winner?: boolean | undefined;
-        }[];
-        description?: string | undefined;
-        game_start_time?: string | undefined;
-        min_incentive_size?: number | undefined;
-        max_incentive_spread?: number | undefined;
-        icon?: string | undefined;
-        volume?: number | undefined;
-        volume_num?: number | undefined;
-        liquidity?: number | undefined;
-        liquidity_num?: number | undefined;
-    }, {
-        condition_id: string;
-        question: string;
-        end_date_iso: string;
-        question_id: string;
-        market_slug: string;
-        active: boolean;
-        closed: boolean;
-        archived: boolean;
-        accepting_orders: boolean;
-        seconds_delay: number;
-        outcomes: {
-            price: number;
-        }[];
-        tokens: {
-            price: number;
-            token_id: string;
-            outcome: string;
-            winner?: boolean | undefined;
-        }[];
-        description?: string | undefined;
-        game_start_time?: string | undefined;
-        min_incentive_size?: number | undefined;
-        max_incentive_spread?: number | undefined;
-        icon?: string | undefined;
-        volume?: number | undefined;
-        volume_num?: number | undefined;
-        liquidity?: number | undefined;
-        liquidity_num?: number | undefined;
-    }>, "many">;
-    volume: z.ZodOptional<z.ZodNumber>;
-    liquidity: z.ZodOptional<z.ZodNumber>;
-}, "strip", z.ZodTypeAny, {
-    id: string;
-    active: boolean;
-    closed: boolean;
-    archived: boolean;
-    slug: string;
-    title: string;
-    markets: {
-        condition_id: string;
-        question: string;
-        end_date_iso: string;
-        question_id: string;
-        market_slug: string;
-        active: boolean;
-        closed: boolean;
-        archived: boolean;
-        accepting_orders: boolean;
-        seconds_delay: number;
-        outcomes: {
-            price: number;
-        }[];
-        tokens: {
-            price: number;
-            token_id: string;
-            outcome: string;
-            winner?: boolean | undefined;
-        }[];
-        description?: string | undefined;
-        game_start_time?: string | undefined;
-        min_incentive_size?: number | undefined;
-        max_incentive_spread?: number | undefined;
-        icon?: string | undefined;
-        volume?: number | undefined;
-        volume_num?: number | undefined;
-        liquidity?: number | undefined;
-        liquidity_num?: number | undefined;
-    }[];
-    description?: string | undefined;
-    start_date_iso?: string | undefined;
-    end_date_iso?: string | undefined;
-    image?: string | undefined;
-    icon?: string | undefined;
-    restricted?: boolean | undefined;
-    volume?: number | undefined;
-    liquidity?: number | undefined;
-}, {
-    id: string;
-    active: boolean;
-    closed: boolean;
-    archived: boolean;
-    slug: string;
-    title: string;
-    markets: {
-        condition_id: string;
-        question: string;
-        end_date_iso: string;
-        question_id: string;
-        market_slug: string;
-        active: boolean;
-        closed: boolean;
-        archived: boolean;
-        accepting_orders: boolean;
-        seconds_delay: number;
-        outcomes: {
-            price: number;
-        }[];
-        tokens: {
-            price: number;
-            token_id: string;
-            outcome: string;
-            winner?: boolean | undefined;
-        }[];
-        description?: string | undefined;
-        game_start_time?: string | undefined;
-        min_incentive_size?: number | undefined;
-        max_incentive_spread?: number | undefined;
-        icon?: string | undefined;
-        volume?: number | undefined;
-        volume_num?: number | undefined;
-        liquidity?: number | undefined;
-        liquidity_num?: number | undefined;
-    }[];
-    description?: string | undefined;
-    start_date_iso?: string | undefined;
-    end_date_iso?: string | undefined;
-    image?: string | undefined;
-    icon?: string | undefined;
-    restricted?: boolean | undefined;
-    volume?: number | undefined;
-    liquidity?: number | undefined;
-}>;
+        outcomes: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        outcomePrices: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        clobTokenIds: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        volume: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        volumeNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidity: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidityNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        conditionId: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        question: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        description: z.ZodOptional<z.ZodString>;
+        endDate: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        endDateIso: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        gameStartTime: z.ZodOptional<z.ZodString>;
+        questionID: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        slug: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        active: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        closed: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        archived: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        acceptingOrders: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        secondsDelay: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+        icon: z.ZodOptional<z.ZodString>;
+        outcomes: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        outcomePrices: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        clobTokenIds: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        volume: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        volumeNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidity: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidityNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        conditionId: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        question: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        description: z.ZodOptional<z.ZodString>;
+        endDate: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        endDateIso: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        gameStartTime: z.ZodOptional<z.ZodString>;
+        questionID: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        slug: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        active: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        closed: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        archived: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        acceptingOrders: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        secondsDelay: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+        icon: z.ZodOptional<z.ZodString>;
+        outcomes: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        outcomePrices: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        clobTokenIds: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        volume: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        volumeNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidity: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidityNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    }, z.ZodTypeAny, "passthrough">>, "many">;
+    volume: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    liquidity: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    id: z.ZodString;
+    slug: z.ZodString;
+    title: z.ZodString;
+    description: z.ZodOptional<z.ZodString>;
+    startDate: z.ZodOptional<z.ZodString>;
+    endDate: z.ZodOptional<z.ZodString>;
+    image: z.ZodOptional<z.ZodString>;
+    icon: z.ZodOptional<z.ZodString>;
+    active: z.ZodBoolean;
+    closed: z.ZodBoolean;
+    archived: z.ZodBoolean;
+    restricted: z.ZodOptional<z.ZodBoolean>;
+    markets: z.ZodArray<z.ZodObject<{
+        conditionId: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        question: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        description: z.ZodOptional<z.ZodString>;
+        endDate: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        endDateIso: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        gameStartTime: z.ZodOptional<z.ZodString>;
+        questionID: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        slug: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        active: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        closed: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        archived: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        acceptingOrders: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        secondsDelay: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+        icon: z.ZodOptional<z.ZodString>;
+        outcomes: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        outcomePrices: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        clobTokenIds: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        volume: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        volumeNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidity: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidityNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        conditionId: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        question: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        description: z.ZodOptional<z.ZodString>;
+        endDate: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        endDateIso: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        gameStartTime: z.ZodOptional<z.ZodString>;
+        questionID: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        slug: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        active: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        closed: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        archived: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        acceptingOrders: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        secondsDelay: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+        icon: z.ZodOptional<z.ZodString>;
+        outcomes: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        outcomePrices: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        clobTokenIds: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        volume: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        volumeNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidity: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidityNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        conditionId: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        question: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        description: z.ZodOptional<z.ZodString>;
+        endDate: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        endDateIso: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        gameStartTime: z.ZodOptional<z.ZodString>;
+        questionID: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        slug: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        active: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        closed: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        archived: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        acceptingOrders: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        secondsDelay: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+        icon: z.ZodOptional<z.ZodString>;
+        outcomes: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        outcomePrices: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        clobTokenIds: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        volume: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        volumeNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidity: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidityNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    }, z.ZodTypeAny, "passthrough">>, "many">;
+    volume: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    liquidity: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    id: z.ZodString;
+    slug: z.ZodString;
+    title: z.ZodString;
+    description: z.ZodOptional<z.ZodString>;
+    startDate: z.ZodOptional<z.ZodString>;
+    endDate: z.ZodOptional<z.ZodString>;
+    image: z.ZodOptional<z.ZodString>;
+    icon: z.ZodOptional<z.ZodString>;
+    active: z.ZodBoolean;
+    closed: z.ZodBoolean;
+    archived: z.ZodBoolean;
+    restricted: z.ZodOptional<z.ZodBoolean>;
+    markets: z.ZodArray<z.ZodObject<{
+        conditionId: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        question: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        description: z.ZodOptional<z.ZodString>;
+        endDate: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        endDateIso: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        gameStartTime: z.ZodOptional<z.ZodString>;
+        questionID: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        slug: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        active: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        closed: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        archived: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        acceptingOrders: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        secondsDelay: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+        icon: z.ZodOptional<z.ZodString>;
+        outcomes: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        outcomePrices: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        clobTokenIds: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        volume: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        volumeNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidity: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidityNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+        conditionId: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        question: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        description: z.ZodOptional<z.ZodString>;
+        endDate: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        endDateIso: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        gameStartTime: z.ZodOptional<z.ZodString>;
+        questionID: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        slug: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        active: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        closed: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        archived: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        acceptingOrders: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        secondsDelay: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+        icon: z.ZodOptional<z.ZodString>;
+        outcomes: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        outcomePrices: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        clobTokenIds: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        volume: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        volumeNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidity: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidityNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+        conditionId: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        question: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        description: z.ZodOptional<z.ZodString>;
+        endDate: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        endDateIso: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        gameStartTime: z.ZodOptional<z.ZodString>;
+        questionID: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        slug: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+        active: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        closed: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        archived: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        acceptingOrders: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+        secondsDelay: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+        icon: z.ZodOptional<z.ZodString>;
+        outcomes: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        outcomePrices: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        clobTokenIds: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodArray<z.ZodString, "many">, z.ZodEffects<z.ZodString, string[], string>]>>>;
+        volume: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        volumeNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidity: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+        liquidityNum: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    }, z.ZodTypeAny, "passthrough">>, "many">;
+    volume: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+    liquidity: z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>;
+}, z.ZodTypeAny, "passthrough">>;
 declare const OrderbookSchema: z.ZodObject<{
-    asset_id: z.ZodString;
-    bids: z.ZodArray<z.ZodObject<{
+    asset_id: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    bids: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodObject<{
         price: z.ZodString;
         size: z.ZodString;
     }, "strip", z.ZodTypeAny, {
@@ -326,8 +330,8 @@ declare const OrderbookSchema: z.ZodObject<{
     }, {
         price: string;
         size: string;
-    }>, "many">;
-    asks: z.ZodArray<z.ZodObject<{
+    }>, "many">>>;
+    asks: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodObject<{
         price: z.ZodString;
         size: z.ZodString;
     }, "strip", z.ZodTypeAny, {
@@ -336,31 +340,55 @@ declare const OrderbookSchema: z.ZodObject<{
     }, {
         price: string;
         size: string;
-    }>, "many">;
-    timestamp: z.ZodNumber;
-}, "strip", z.ZodTypeAny, {
-    asset_id: string;
-    bids: {
+    }>, "many">>>;
+    timestamp: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>>;
+}, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+    asset_id: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    bids: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodObject<{
+        price: z.ZodString;
+        size: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
         price: string;
         size: string;
-    }[];
-    asks: {
+    }, {
         price: string;
         size: string;
-    }[];
-    timestamp: number;
-}, {
-    asset_id: string;
-    bids: {
+    }>, "many">>>;
+    asks: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodObject<{
+        price: z.ZodString;
+        size: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
         price: string;
         size: string;
-    }[];
-    asks: {
+    }, {
         price: string;
         size: string;
-    }[];
-    timestamp: number;
-}>;
+    }>, "many">>>;
+    timestamp: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>>;
+}, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+    asset_id: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    bids: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodObject<{
+        price: z.ZodString;
+        size: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        price: string;
+        size: string;
+    }, {
+        price: string;
+        size: string;
+    }>, "many">>>;
+    asks: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodObject<{
+        price: z.ZodString;
+        size: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        price: string;
+        size: string;
+    }, {
+        price: string;
+        size: string;
+    }>, "many">>>;
+    timestamp: z.ZodDefault<z.ZodOptional<z.ZodUnion<[z.ZodNumber, z.ZodEffects<z.ZodString, number, string>]>>>;
+}, z.ZodTypeAny, "passthrough">>;
 declare const TradeSchema: z.ZodObject<{
     id: z.ZodString;
     market: z.ZodString;
@@ -372,8 +400,8 @@ declare const TradeSchema: z.ZodObject<{
     fee_rate_bps: z.ZodOptional<z.ZodNumber>;
     status: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    id: string;
     price: string;
+    id: string;
     asset_id: string;
     size: string;
     timestamp: number;
@@ -382,8 +410,8 @@ declare const TradeSchema: z.ZodObject<{
     fee_rate_bps?: number | undefined;
     status?: string | undefined;
 }, {
-    id: string;
     price: string;
+    id: string;
     asset_id: string;
     size: string;
     timestamp: number;
@@ -450,10 +478,13 @@ export declare class PolymarketAPI {
     private readonly windowMs;
     private readonly retryConfig;
     private readonly testMode;
+    private readonly defaultTimeoutMs;
+    private pendingRequests;
     constructor(config?: PolymarketConfig);
     private enforceRateLimit;
     private isRetryableError;
     private delay;
+    private normalizeCacheKey;
     private fetchWithRetry;
     private fetch;
     getMarkets(params?: {
@@ -461,6 +492,7 @@ export declare class PolymarketAPI {
         offset?: number;
         closed?: boolean;
         archived?: boolean;
+        active?: boolean;
         order?: 'id' | 'volume' | 'liquidity';
         ascending?: boolean;
     }): Promise<Market[]>;
@@ -494,6 +526,7 @@ export declare class PolymarketAPI {
         startTs?: number;
         endTs?: number;
         interval?: 'minute' | 'hour' | 'day';
+        market?: string;
     }): Promise<Array<{
         timestamp: number;
         price: number;

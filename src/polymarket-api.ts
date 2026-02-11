@@ -24,44 +24,53 @@ class APIError extends Error {
   }
 }
 
+// Coerce helper: accept both number and string, return number | undefined
+const coerceNum = z.union([z.number(), z.string().transform(Number)]).optional();
+
+// Helper: parse a JSON string that may be a stringified array, or pass through an array
+const jsonStringArray = z.union([
+  z.array(z.string()),
+  z.string().transform((s) => {
+    try { const p = JSON.parse(s); return Array.isArray(p) ? p.map(String) : []; }
+    catch { return []; }
+  }),
+]).optional().default([]);
+
 const MarketSchema = z.object({
-  condition_id: z.string(),
-  question: z.string(),
+  // Actual Gamma API field names (camelCase)
+  conditionId: z.string().optional().default(''),
+  question: z.string().optional().default(''),
   description: z.string().optional(),
-  end_date_iso: z.string(),
-  game_start_time: z.string().optional(),
-  question_id: z.string(),
-  market_slug: z.string(),
-  min_incentive_size: z.number().optional(),
-  max_incentive_spread: z.number().optional(),
-  active: z.boolean(),
-  closed: z.boolean(),
-  archived: z.boolean(),
-  accepting_orders: z.boolean(),
-  seconds_delay: z.number(),
+  endDate: z.string().optional().default(''),
+  endDateIso: z.string().optional().default(''),
+  gameStartTime: z.string().optional(),
+  questionID: z.string().optional().default(''),
+  slug: z.string().optional().default(''),
+  active: z.boolean().optional().default(false),
+  closed: z.boolean().optional().default(false),
+  archived: z.boolean().optional().default(false),
+  acceptingOrders: z.boolean().optional().default(false),
+  secondsDelay: z.number().optional().default(0),
   icon: z.string().optional(),
-  outcomes: z.array(z.object({
-    price: z.number(),
-  })),
-  tokens: z.array(z.object({
-    token_id: z.string(),
-    outcome: z.string(),
-    price: z.number(),
-    winner: z.boolean().optional(),
-  })),
-  volume: z.number().optional(),
-  volume_num: z.number().optional(),
-  liquidity: z.number().optional(),
-  liquidity_num: z.number().optional(),
-});
+  // outcomes is a JSON string like '["Yes","No"]' or an array
+  outcomes: jsonStringArray,
+  // outcomePrices is a JSON string like '["0.54","0.46"]' or an array
+  outcomePrices: jsonStringArray,
+  // clobTokenIds is a JSON string of token IDs
+  clobTokenIds: jsonStringArray,
+  volume: coerceNum,
+  volumeNum: coerceNum,
+  liquidity: coerceNum,
+  liquidityNum: coerceNum,
+}).passthrough();
 
 const EventSchema = z.object({
   id: z.string(),
   slug: z.string(),
   title: z.string(),
   description: z.string().optional(),
-  start_date_iso: z.string().optional(),
-  end_date_iso: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
   image: z.string().optional(),
   icon: z.string().optional(),
   active: z.boolean(),
@@ -69,22 +78,22 @@ const EventSchema = z.object({
   archived: z.boolean(),
   restricted: z.boolean().optional(),
   markets: z.array(MarketSchema),
-  volume: z.number().optional(),
-  liquidity: z.number().optional(),
-});
+  volume: coerceNum,
+  liquidity: coerceNum,
+}).passthrough();
 
 const OrderbookSchema = z.object({
-  asset_id: z.string(),
+  asset_id: z.string().optional().default(''),
   bids: z.array(z.object({
     price: z.string(),
     size: z.string(),
-  })),
+  })).optional().default([]),
   asks: z.array(z.object({
     price: z.string(),
     size: z.string(),
-  })),
-  timestamp: z.number(),
-});
+  })).optional().default([]),
+  timestamp: z.union([z.number(), z.string().transform(Number)]).optional().default(0),
+}).passthrough();
 
 const TradeSchema = z.object({
   id: z.string(),
@@ -225,7 +234,7 @@ export class PolymarketAPI {
   private async fetchWithRetry<T>(
     url: string,
     options: RequestInit = {},
-    schema?: z.ZodSchema<T>,
+    schema?: z.ZodType<T, any, any>,
     attempt: number = 1,
     timeoutMs?: number
   ): Promise<T> {
@@ -342,12 +351,12 @@ export class PolymarketAPI {
   private async fetch<T>(
     url: string,
     options: RequestInit = {},
-    schema?: z.ZodSchema<T>
+    schema?: z.ZodType<T, any, any>
   ): Promise<T> {
     return this.fetchWithRetry(url, options, schema, 1);
   }
   
-  async getMarkets(params: { limit?: number; offset?: number; closed?: boolean; archived?: boolean; order?: 'id' | 'volume' | 'liquidity'; ascending?: boolean } = {}): Promise<Market[]> {
+  async getMarkets(params: { limit?: number; offset?: number; closed?: boolean; archived?: boolean; active?: boolean; order?: 'id' | 'volume' | 'liquidity'; ascending?: boolean } = {}): Promise<Market[]> {
     const q = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => v !== undefined && q.set(k, String(v)));
     return this.fetch(`${this.urls.gamma}/markets?${q}`, {}, z.array(MarketSchema));
@@ -421,14 +430,33 @@ export class PolymarketAPI {
     startTs?: number;
     endTs?: number;
     interval?: 'minute' | 'hour' | 'day';
+    market?: string; // conditionId — required by CLOB prices-history
   } = {}): Promise<Array<{ timestamp: number; price: number }>> {
-    const queryParams = new URLSearchParams({ token_id: tokenId });
-    if (params.startTs) queryParams.set('start_ts', params.startTs.toString());
-    if (params.endTs) queryParams.set('end_ts', params.endTs.toString());
-    if (params.interval) queryParams.set('interval', params.interval);
+    // CLOB prices-history requires 'market' (conditionId) not 'token_id'
+    const queryParams = new URLSearchParams();
+    if (params.market) queryParams.set('market', params.market);
+    else queryParams.set('market', tokenId); // fallback
+    if (params.startTs) queryParams.set('startTs', params.startTs.toString());
+    if (params.endTs) queryParams.set('endTs', params.endTs.toString());
+    if (params.interval) {
+      const intervalMap: Record<string, string> = { minute: '1m', hour: '1h', day: '1d' };
+      queryParams.set('interval', intervalMap[params.interval] || params.interval);
+    }
     
-    const url = `${this.urls.data}/prices?${queryParams}`;
-    return this.fetch(url);
+    const url = `${this.urls.clob}/prices-history?${queryParams}`;
+    try {
+      const data = await this.fetch<{ history: Array<{ t: number; p: number }> }>(url);
+      return (data.history || []).map(h => ({ timestamp: h.t, price: h.p }));
+    } catch {
+      // Fallback: use last-trade-price for a single current price
+      try {
+        const ltpUrl = `${this.urls.clob}/last-trade-price?token_id=${tokenId}`;
+        const ltp = await this.fetch<{ price: string }>(ltpUrl);
+        return [{ timestamp: Math.floor(Date.now() / 1000), price: parseFloat(ltp.price) }];
+      } catch {
+        return [];
+      }
+    }
   }
   
   async getTags(): Promise<Array<{ label: string; slug: string }>> {

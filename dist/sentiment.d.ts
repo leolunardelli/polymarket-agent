@@ -28,6 +28,8 @@ export declare class SentimentAnalyzer {
     private negativeWords;
     private intensifiers;
     private negators;
+    private positiveBigrams;
+    private negativeBigrams;
     analyzeSentiment(text: string): SentimentResult;
     private tokenize;
     aggregateSentiment(data: SocialData[], decay_hours?: number): AggregatedSentiment;

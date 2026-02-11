@@ -1,112 +1,51 @@
 {
-  "timestamp": "2026-01-31T16:28:57.182Z",
+  "timestamp": "2026-02-11T12:59:46.878Z",
   "testInfo": {
-    "startTime": "2026-01-31T14:35:52.668Z",
-    "endTime": "2026-02-07T14:35:52.668Z",
-    "elapsedHours": "1.88",
-    "remainingHours": "166.12",
-    "percentComplete": "1.12",
-    "status": "running"
+    "startTime": "2026-02-11T12:54:22.957Z",
+    "endTime": "2026-02-18T12:54:22.957Z",
+    "elapsedHours": "0.09",
+    "remainingHours": "167.91",
+    "percentComplete": "0.05",
+    "status": "completed"
   },
   "performance": {
     "startBalance": 10000,
-    "currentBalance": 1028.1315944999978,
-    "totalValue": 2919.9790944999977,
-    "unrealizedPnL": -27.30000000000001,
+    "currentBalance": 10000,
+    "totalValue": 10000,
+    "unrealizedPnL": 0,
     "realizedPnL": 0,
-    "totalPnL": -27.30000000000001,
-    "returnPercent": "-70.80",
+    "totalPnL": 0,
+    "returnPercent": "0.00",
     "winRate": "0.00",
-    "maxDrawdown": "0.02"
+    "maxDrawdown": "0.00",
+    "sharpeRatio": 0,
+    "profitFactor": 0
   },
   "activity": {
-    "totalTrades": 5,
+    "totalTrades": 0,
     "winningTrades": 0,
     "losingTrades": 0,
-    "openPositions": 10,
-    "marketsAnalyzed": 950,
-    "cyclesCompleted": 19
+    "openPositions": 0,
+    "marketsAnalyzed": 50,
+    "cyclesCompleted": 1
   },
-  "positions": [
+  "positions": [],
+  "peakPrices": {},
+  "performanceSnapshots": [
     {
-      "symbol": "Will Trump deport 250,000-500,..._No",
-      "quantity": 2184,
-      "entryPrice": 0.135,
-      "currentPrice": 0.1225,
-      "pnl": -27.30000000000001,
-      "pnlPercent": "-9.26"
+      "timestamp": "2026-02-11T12:54:22.958Z",
+      "totalValue": 10000,
+      "balance": 10000
     },
     {
-      "symbol": "Will the U.S. collect less tha..._No",
-      "quantity": 1182,
-      "entryPrice": 0.2245,
-      "currentPrice": 0.2245,
-      "pnl": 0,
-      "pnlPercent": "0.00"
+      "timestamp": "2026-02-11T12:54:46.875Z",
+      "totalValue": 10000,
+      "balance": 10000
     },
     {
-      "symbol": "Will the U.S. collect between ..._Yes",
-      "quantity": 1326,
-      "entryPrice": 0.18,
-      "currentPrice": 0.18,
-      "pnl": 0,
-      "pnlPercent": "0.00"
-    },
-    {
-      "symbol": "Will the New England Patriots ..._Yes",
-      "quantity": 681,
-      "entryPrice": 0.3155,
-      "currentPrice": 0.3155,
-      "pnl": 0,
-      "pnlPercent": "0.00"
-    },
-    {
-      "symbol": "Will the Seattle Seahawks win ..._No",
-      "quantity": 613,
-      "entryPrice": 0.3155,
-      "currentPrice": 0.3155,
-      "pnl": 0,
-      "pnlPercent": "0.00"
-    },
-    {
-      "symbol": "Will the U.S. collect less tha..._No",
-      "quantity": 775,
-      "entryPrice": 0.2245,
-      "currentPrice": 0.2245,
-      "pnl": 0,
-      "pnlPercent": "0.00"
-    },
-    {
-      "symbol": "Will the U.S. collect between ..._Yes",
-      "quantity": 870,
-      "entryPrice": 0.18,
-      "currentPrice": 0.18,
-      "pnl": 0,
-      "pnlPercent": "0.00"
-    },
-    {
-      "symbol": "Will the New England Patriots ..._Yes",
-      "quantity": 446,
-      "entryPrice": 0.3155,
-      "currentPrice": 0.3155,
-      "pnl": 0,
-      "pnlPercent": "0.00"
-    },
-    {
-      "symbol": "Will the Seattle Seahawks win ..._No",
-      "quantity": 402,
-      "entryPrice": 0.3155,
-      "currentPrice": 0.3155,
-      "pnl": 0,
-      "pnlPercent": "0.00"
-    },
-    {
-      "symbol": "Russia-Ukraine Ceasefire befor..._No",
-      "quantity": 292,
-      "entryPrice": 0.39,
-      "currentPrice": 0.39,
-      "pnl": 0,
-      "pnlPercent": "0.00"
+      "timestamp": "2026-02-11T12:59:46.878Z",
+      "totalValue": 10000,
+      "balance": 10000
     }
   ],
   "errors": []

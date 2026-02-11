@@ -15,6 +15,9 @@ export declare class ThreadSafeCache<K extends string | number = string, V = any
     private defaultTTL;
     private isWriteLocked;
     private writeWaitQueue;
+    private hitCount;
+    private missCount;
+    private evictionCount;
     constructor(maxSize?: number, defaultTTL?: number);
     /**
      * Get a value from cache
@@ -46,6 +49,10 @@ export declare class ThreadSafeCache<K extends string | number = string, V = any
         utilizationPercent: number;
         totalEntries: number;
         expiredEntries: number;
+        hitCount: number;
+        missCount: number;
+        hitRate: number;
+        evictionCount: number;
     };
     /**
      * Clean up expired entries
@@ -68,5 +75,5 @@ export declare class ThreadSafeCache<K extends string | number = string, V = any
      */
     getAll(): Promise<Array<[K, V]>>;
 }
-export declare function getCache(maxSize?: number, ttl?: number): ThreadSafeCache<string>;
+export declare function getCache<V = any>(maxSize?: number, ttl?: number): ThreadSafeCache<string, V>;
 //# sourceMappingURL=cache.d.ts.map

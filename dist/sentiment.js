@@ -3,14 +3,56 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SentimentAnalyzer = void 0;
 class SentimentAnalyzer {
     constructor() {
-        this.positiveWords = new Set(['good', 'great', 'excellent', 'amazing', 'bullish', 'moon', 'pump', 'win', 'success', 'profit', 'gains', 'strong', 'surge', 'rally', 'boom', 'growth', 'optimistic', 'positive']);
-        this.negativeWords = new Set(['bad', 'terrible', 'awful', 'horrible', 'bearish', 'dump', 'crash', 'lose', 'fail', 'loss', 'weak', 'decline', 'drop', 'fall', 'collapse', 'pessimistic', 'negative', 'concern']);
-        this.intensifiers = new Set(['very', 'extremely', 'highly', 'really', 'super', 'incredibly', 'absolutely', 'totally', 'completely']);
-        this.negators = new Set(['not', 'no', 'never', 'neither', 'hardly', "don't", "doesn't", "can't", "couldn't"]);
+        // P2 #9: Expanded word lists with prediction-market / political vocabulary
+        this.positiveWords = new Set([
+            'good', 'great', 'excellent', 'amazing', 'bullish', 'moon', 'pump', 'win',
+            'success', 'profit', 'gains', 'strong', 'surge', 'rally', 'boom', 'growth',
+            'optimistic', 'positive', 'confirmed', 'approved', 'passed', 'likely',
+            'certain', 'unanimous', 'upgrade', 'breakthrough', 'soaring', 'outperform',
+            'landslide', 'victory', 'support', 'momentum', 'rising', 'uptick',
+            'favorable', 'promising', 'endorsement', 'ratified', 'signed',
+        ]);
+        this.negativeWords = new Set([
+            'bad', 'terrible', 'awful', 'horrible', 'bearish', 'dump', 'crash', 'lose',
+            'fail', 'loss', 'weak', 'decline', 'drop', 'fall', 'collapse', 'pessimistic',
+            'negative', 'concern', 'denied', 'rejected', 'postponed', 'unlikely',
+            'impossible', 'scandal', 'investigation', 'indictment', 'downgrade',
+            'plummet', 'underperform', 'defeat', 'veto', 'opposed', 'stalled',
+            'controversial', 'uncertainty', 'risk', 'default', 'recession', 'sanctions',
+        ]);
+        this.intensifiers = new Set(['very', 'extremely', 'highly', 'really', 'super', 'incredibly', 'absolutely', 'totally', 'completely', 'overwhelmingly', 'significantly']);
+        this.negators = new Set(['not', 'no', 'never', 'neither', 'hardly', "don't", "doesn't", "can't", "couldn't", "won't", "unlikely"]);
+        // P3 #3: Bigram / multi-word phrase scoring
+        this.positiveBigrams = new Map([
+            ['better than', 0.8], ['more likely', 0.7], ['highly likely', 0.9],
+            ['strong support', 0.8], ['ahead in', 0.6], ['set to', 0.5],
+            ['on track', 0.7], ['widely expected', 0.6], ['looking good', 0.7],
+        ]);
+        this.negativeBigrams = new Map([
+            ['worse than', -0.8], ['less likely', -0.7], ['highly unlikely', -0.9],
+            ['falling behind', -0.8], ['at risk', -0.6], ['unlikely to', -0.7],
+            ['no chance', -0.9], ['failed to', -0.6], ['pulled out', -0.5],
+        ]);
     }
     analyzeSentiment(text) {
-        const words = this.tokenize(text.toLowerCase());
+        const lower = text.toLowerCase();
+        const words = this.tokenize(lower);
         let score = 0, magnitude = 0, count = 0;
+        // P3 #3: Check bigrams first
+        for (const [phrase, val] of this.positiveBigrams) {
+            if (lower.includes(phrase)) {
+                score += val;
+                magnitude += Math.abs(val);
+                count++;
+            }
+        }
+        for (const [phrase, val] of this.negativeBigrams) {
+            if (lower.includes(phrase)) {
+                score += val;
+                magnitude += Math.abs(val);
+                count++;
+            }
+        }
         for (let i = 0; i < words.length; i++) {
             let word_score = this.positiveWords.has(words[i]) ? 1 : this.negativeWords.has(words[i]) ? -1 : 0;
             if (word_score !== 0) {

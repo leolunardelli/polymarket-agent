@@ -15,43 +15,55 @@ class APIError extends Error {
     }
 }
 exports.APIError = APIError;
+// Coerce helper: accept both number and string, return number | undefined
+const coerceNum = zod_1.z.union([zod_1.z.number(), zod_1.z.string().transform(Number)]).optional();
+// Helper: parse a JSON string that may be a stringified array, or pass through an array
+const jsonStringArray = zod_1.z.union([
+    zod_1.z.array(zod_1.z.string()),
+    zod_1.z.string().transform((s) => {
+        try {
+            const p = JSON.parse(s);
+            return Array.isArray(p) ? p.map(String) : [];
+        }
+        catch {
+            return [];
+        }
+    }),
+]).optional().default([]);
 const MarketSchema = zod_1.z.object({
-    condition_id: zod_1.z.string(),
-    question: zod_1.z.string(),
+    // Actual Gamma API field names (camelCase)
+    conditionId: zod_1.z.string().optional().default(''),
+    question: zod_1.z.string().optional().default(''),
     description: zod_1.z.string().optional(),
-    end_date_iso: zod_1.z.string(),
-    game_start_time: zod_1.z.string().optional(),
-    question_id: zod_1.z.string(),
-    market_slug: zod_1.z.string(),
-    min_incentive_size: zod_1.z.number().optional(),
-    max_incentive_spread: zod_1.z.number().optional(),
-    active: zod_1.z.boolean(),
-    closed: zod_1.z.boolean(),
-    archived: zod_1.z.boolean(),
-    accepting_orders: zod_1.z.boolean(),
-    seconds_delay: zod_1.z.number(),
+    endDate: zod_1.z.string().optional().default(''),
+    endDateIso: zod_1.z.string().optional().default(''),
+    gameStartTime: zod_1.z.string().optional(),
+    questionID: zod_1.z.string().optional().default(''),
+    slug: zod_1.z.string().optional().default(''),
+    active: zod_1.z.boolean().optional().default(false),
+    closed: zod_1.z.boolean().optional().default(false),
+    archived: zod_1.z.boolean().optional().default(false),
+    acceptingOrders: zod_1.z.boolean().optional().default(false),
+    secondsDelay: zod_1.z.number().optional().default(0),
     icon: zod_1.z.string().optional(),
-    outcomes: zod_1.z.array(zod_1.z.object({
-        price: zod_1.z.number(),
-    })),
-    tokens: zod_1.z.array(zod_1.z.object({
-        token_id: zod_1.z.string(),
-        outcome: zod_1.z.string(),
-        price: zod_1.z.number(),
-        winner: zod_1.z.boolean().optional(),
-    })),
-    volume: zod_1.z.number().optional(),
-    volume_num: zod_1.z.number().optional(),
-    liquidity: zod_1.z.number().optional(),
-    liquidity_num: zod_1.z.number().optional(),
-});
+    // outcomes is a JSON string like '["Yes","No"]' or an array
+    outcomes: jsonStringArray,
+    // outcomePrices is a JSON string like '["0.54","0.46"]' or an array
+    outcomePrices: jsonStringArray,
+    // clobTokenIds is a JSON string of token IDs
+    clobTokenIds: jsonStringArray,
+    volume: coerceNum,
+    volumeNum: coerceNum,
+    liquidity: coerceNum,
+    liquidityNum: coerceNum,
+}).passthrough();
 const EventSchema = zod_1.z.object({
     id: zod_1.z.string(),
     slug: zod_1.z.string(),
     title: zod_1.z.string(),
     description: zod_1.z.string().optional(),
-    start_date_iso: zod_1.z.string().optional(),
-    end_date_iso: zod_1.z.string().optional(),
+    startDate: zod_1.z.string().optional(),
+    endDate: zod_1.z.string().optional(),
     image: zod_1.z.string().optional(),
     icon: zod_1.z.string().optional(),
     active: zod_1.z.boolean(),
@@ -59,21 +71,21 @@ const EventSchema = zod_1.z.object({
     archived: zod_1.z.boolean(),
     restricted: zod_1.z.boolean().optional(),
     markets: zod_1.z.array(MarketSchema),
-    volume: zod_1.z.number().optional(),
-    liquidity: zod_1.z.number().optional(),
-});
+    volume: coerceNum,
+    liquidity: coerceNum,
+}).passthrough();
 const OrderbookSchema = zod_1.z.object({
-    asset_id: zod_1.z.string(),
+    asset_id: zod_1.z.string().optional().default(''),
     bids: zod_1.z.array(zod_1.z.object({
         price: zod_1.z.string(),
         size: zod_1.z.string(),
-    })),
+    })).optional().default([]),
     asks: zod_1.z.array(zod_1.z.object({
         price: zod_1.z.string(),
         size: zod_1.z.string(),
-    })),
-    timestamp: zod_1.z.number(),
-});
+    })).optional().default([]),
+    timestamp: zod_1.z.union([zod_1.z.number(), zod_1.z.string().transform(Number)]).optional().default(0),
+}).passthrough();
 const TradeSchema = zod_1.z.object({
     id: zod_1.z.string(),
     market: zod_1.z.string(),
@@ -99,10 +111,13 @@ class PolymarketAPI {
         this.config = config;
         this.requests = [];
         this.cacheTTL = 10000;
+        // P2 #8: Request deduplication — deduplicate in-flight requests
+        this.pendingRequests = new Map();
         const rateLimit = config.rateLimit || { maxRequests: 100, windowMs: 60000 };
         this.maxRequests = rateLimit.maxRequests;
         this.windowMs = rateLimit.windowMs;
         this.testMode = config.testMode?.enabled || false;
+        this.defaultTimeoutMs = config.timeoutMs || 30000;
         // Use shared thread-safe cache
         this.cache = (0, cache_1.getCache)(1000, this.cacheTTL);
         // Retry configuration with exponential backoff
@@ -151,73 +166,109 @@ class PolymarketAPI {
     async delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
-    async fetchWithRetry(url, options = {}, schema, attempt = 1) {
-        const maxAttempts = this.retryConfig.maxAttempts;
+    // P2 #7: Normalize cache key — sort query params to avoid false misses
+    normalizeCacheKey(url, options) {
         try {
-            await this.enforceRateLimit();
-            const cacheKey = `${url}${JSON.stringify(options)}`;
-            const cached = this.cache.get(cacheKey);
-            if (cached) {
-                logger_1.logger.debug('Cache hit', { url });
-                return cached.data;
-            }
-            const headers = {
-                'Content-Type': 'application/json',
-            };
-            if (options.headers && typeof options.headers === 'object') {
-                Object.assign(headers, options.headers);
-            }
-            if (this.config.apiKey) {
-                headers['Authorization'] = `Bearer ${this.config.apiKey}`;
-            }
-            logger_1.logger.debug('Fetching', { url, attempt, maxAttempts });
-            // Use AbortController for timeout support (Node.js 15+)
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000);
-            let response;
+            const u = new URL(url);
+            const sorted = new URLSearchParams([...u.searchParams.entries()].sort());
+            u.search = sorted.toString();
+            // Exclude volatile headers (Authorization, etc.) from key
+            const method = (options.method || 'GET').toUpperCase();
+            return `${method}:${u.toString()}`;
+        }
+        catch {
+            return `${url}_${JSON.stringify(options)}`;
+        }
+    }
+    async fetchWithRetry(url, options = {}, schema, attempt = 1, timeoutMs) {
+        const maxAttempts = this.retryConfig.maxAttempts;
+        const cacheKey = this.normalizeCacheKey(url, options);
+        // P2 #8: Deduplicate in-flight requests
+        const pending = this.pendingRequests.get(cacheKey);
+        if (pending && attempt === 1) {
+            logger_1.logger.debug('Request dedup hit', { url });
+            return pending;
+        }
+        const doFetch = async () => {
             try {
-                response = await fetch(url, {
-                    ...options,
-                    headers,
-                    signal: controller.signal,
-                });
-            }
-            finally {
-                clearTimeout(timeoutId);
-            }
-            if (!response.ok) {
-                const body = await response.text();
-                const error = new APIError(response.status, url, `API ${response.status}: ${body}`, this.isRetryableError(response.status));
-                if (error.retryable && attempt < maxAttempts) {
-                    const delayMs = Math.min(this.retryConfig.initialDelayMs * Math.pow(this.retryConfig.backoffMultiplier, attempt - 1), this.retryConfig.maxDelayMs);
-                    logger_1.logger.warn('Retryable error, backing off', { error: error.message, delayMs, attempt });
-                    await this.delay(delayMs);
-                    return this.fetchWithRetry(url, options, schema, attempt + 1);
+                await this.enforceRateLimit();
+                const cached = this.cache.get(cacheKey);
+                if (cached) {
+                    logger_1.logger.debug('Cache hit', { url });
+                    return cached.data;
                 }
+                const headers = {
+                    'Content-Type': 'application/json',
+                };
+                if (options.headers && typeof options.headers === 'object') {
+                    Object.assign(headers, options.headers);
+                }
+                if (this.config.apiKey) {
+                    headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+                }
+                logger_1.logger.debug('Fetching', { url, attempt, maxAttempts });
+                // P3 #2: Configurable timeout per-request
+                const effectiveTimeout = timeoutMs || this.defaultTimeoutMs;
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
+                let response;
+                try {
+                    response = await fetch(url, {
+                        ...options,
+                        headers,
+                        signal: controller.signal,
+                    });
+                }
+                finally {
+                    clearTimeout(timeoutId);
+                }
+                if (!response.ok) {
+                    const body = await response.text();
+                    const error = new APIError(response.status, url, `API ${response.status}: ${body}`, this.isRetryableError(response.status));
+                    if (error.retryable && attempt < maxAttempts) {
+                        const delayMs = Math.min(this.retryConfig.initialDelayMs * Math.pow(this.retryConfig.backoffMultiplier, attempt - 1), this.retryConfig.maxDelayMs);
+                        logger_1.logger.warn('Retryable error, backing off', { error: error.message, delayMs, attempt });
+                        await this.delay(delayMs);
+                        return this.fetchWithRetry(url, options, schema, attempt + 1, timeoutMs);
+                    }
+                    throw error;
+                }
+                const data = await response.json();
+                // Validate response with schema
+                let validated;
+                try {
+                    validated = schema ? schema.parse(data) : data;
+                }
+                catch (parseError) {
+                    logger_1.logger.error('Response validation failed', { url, error: parseError });
+                    throw parseError;
+                }
+                await this.cache.set(cacheKey, validated, this.cacheTTL);
+                logger_1.logger.debug('Request successful', { url });
+                return validated;
+            }
+            catch (error) {
+                logger_1.logger.error('Fetch failed', {
+                    url,
+                    attempt,
+                    error: error instanceof Error ? error.message : String(error),
+                });
                 throw error;
             }
-            const data = await response.json();
-            // Validate response with schema
-            let validated;
+        }; // end doFetch
+        // P2 #8: Store promise for dedup, clean up when done
+        if (attempt === 1) {
+            const promise = doFetch();
+            this.pendingRequests.set(cacheKey, promise);
             try {
-                validated = schema ? schema.parse(data) : data;
+                const result = await promise;
+                return result;
             }
-            catch (parseError) {
-                logger_1.logger.error('Response validation failed', { url, error: parseError });
-                throw parseError;
+            finally {
+                this.pendingRequests.delete(cacheKey);
             }
-            await this.cache.set(cacheKey, validated, this.cacheTTL);
-            logger_1.logger.debug('Request successful', { url });
-            return validated;
         }
-        catch (error) {
-            logger_1.logger.error('Fetch failed', {
-                url,
-                attempt,
-                error: error instanceof Error ? error.message : String(error),
-            });
-            throw error;
-        }
+        return doFetch();
     }
     async fetch(url, options = {}, schema) {
         return this.fetchWithRetry(url, options, schema, 1);
@@ -280,15 +331,36 @@ class PolymarketAPI {
         return this.fetch(url, {}, zod_1.z.array(MarketSchema));
     }
     async getPriceHistory(tokenId, params = {}) {
-        const queryParams = new URLSearchParams({ token_id: tokenId });
+        // CLOB prices-history requires 'market' (conditionId) not 'token_id'
+        const queryParams = new URLSearchParams();
+        if (params.market)
+            queryParams.set('market', params.market);
+        else
+            queryParams.set('market', tokenId); // fallback
         if (params.startTs)
-            queryParams.set('start_ts', params.startTs.toString());
+            queryParams.set('startTs', params.startTs.toString());
         if (params.endTs)
-            queryParams.set('end_ts', params.endTs.toString());
-        if (params.interval)
-            queryParams.set('interval', params.interval);
-        const url = `${this.urls.data}/prices?${queryParams}`;
-        return this.fetch(url);
+            queryParams.set('endTs', params.endTs.toString());
+        if (params.interval) {
+            const intervalMap = { minute: '1m', hour: '1h', day: '1d' };
+            queryParams.set('interval', intervalMap[params.interval] || params.interval);
+        }
+        const url = `${this.urls.clob}/prices-history?${queryParams}`;
+        try {
+            const data = await this.fetch(url);
+            return (data.history || []).map(h => ({ timestamp: h.t, price: h.p }));
+        }
+        catch {
+            // Fallback: use last-trade-price for a single current price
+            try {
+                const ltpUrl = `${this.urls.clob}/last-trade-price?token_id=${tokenId}`;
+                const ltp = await this.fetch(ltpUrl);
+                return [{ timestamp: Math.floor(Date.now() / 1000), price: parseFloat(ltp.price) }];
+            }
+            catch {
+                return [];
+            }
+        }
     }
     async getTags() {
         const url = `${this.urls.gamma}/tags`;

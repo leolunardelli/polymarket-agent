@@ -44,6 +44,8 @@ export interface SimulationMetrics {
     largestLoss: number;
     maxDrawdown: number;
     returnPercentage: number;
+    profitFactor: number;
+    sharpeRatio: number;
 }
 declare class TradingSimulator {
     private balance;
@@ -86,13 +88,23 @@ declare class TradingSimulator {
      */
     getMetrics(): SimulationMetrics;
     /**
+     * P2 #5: Profit factor = gross wins / gross losses
+     */
+    private calculateProfitFactor;
+    /**
+     * P3 #1: Sharpe ratio from portfolio value history
+     * Annualised assuming 5-min cycles (105,120 cycles/year)
+     */
+    private calculateSharpeRatio;
+    /**
      * Calculate maximum drawdown from TOTAL PORTFOLIO VALUE (not just cash)
      */
     private calculateMaxDrawdown;
     /**
      * Record portfolio value to history (includes positions value)
+     * Can be called externally to track value between trades
      */
-    private updatePortfolioHistory;
+    updatePortfolioHistory(): void;
     /**
      * Get all trades
      */
@@ -123,6 +135,7 @@ declare class TradingSimulator {
             pnl?: number;
             pnlPercent?: string;
             pnlPercentage?: number;
+            createdAt?: string;
         }>;
     }): void;
 }

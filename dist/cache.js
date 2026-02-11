@@ -10,6 +10,10 @@ class ThreadSafeCache {
     constructor(maxSize = 1000, defaultTTL = 60000) {
         this.isWriteLocked = false;
         this.writeWaitQueue = [];
+        // P3 #5: Hit/miss/eviction statistics
+        this.hitCount = 0;
+        this.missCount = 0;
+        this.evictionCount = 0;
         this.cache = new Map();
         this.maxSize = maxSize;
         this.defaultTTL = defaultTTL;
@@ -21,16 +25,19 @@ class ThreadSafeCache {
     get(key) {
         const entry = this.cache.get(key);
         if (!entry) {
+            this.missCount++;
             return undefined;
         }
         // Check if entry has expired
         if (Date.now() > entry.expiresAt) {
             this.cache.delete(key);
+            this.missCount++;
             return undefined;
         }
         // Update access metadata (no lock needed for reads)
         entry.accessCount++;
         entry.lastAccessTime = Date.now();
+        this.hitCount++;
         return entry.value;
     }
     /**
@@ -112,12 +119,17 @@ class ThreadSafeCache {
                 expiredCount++;
             }
         });
+        const totalRequests = this.hitCount + this.missCount;
         return {
             size: this.cache.size,
             maxSize: this.maxSize,
             utilizationPercent: (this.cache.size / this.maxSize) * 100,
             totalEntries: this.cache.size,
             expiredEntries: expiredCount,
+            hitCount: this.hitCount,
+            missCount: this.missCount,
+            hitRate: totalRequests > 0 ? (this.hitCount / totalRequests) * 100 : 0,
+            evictionCount: this.evictionCount,
         };
     }
     /**
@@ -188,10 +200,12 @@ class ThreadSafeCache {
         // Delete expired entries first
         if (expiredKeys.length > 0) {
             expiredKeys.forEach((key) => this.cache.delete(key));
+            this.evictionCount += expiredKeys.length;
         }
         // If still over capacity, evict LRU
         if (this.cache.size >= this.maxSize && lruKey !== null) {
             this.cache.delete(lruKey);
+            this.evictionCount++;
         }
     }
     /**
