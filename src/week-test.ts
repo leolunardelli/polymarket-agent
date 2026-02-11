@@ -323,10 +323,10 @@ class WeekTest {
       const tokenId = market.tokenIds[0];
       const book = await this.api.getOrderbook(tokenId);
       if (book.bids.length > 0 && book.asks.length > 0) {
-        const bestBid = parseFloat(book.bids[0].price);
-        const bestAsk = parseFloat(book.asks[0].price);
+        // Find the HIGHEST bid and LOWEST ask (API sort order not guaranteed)
+        const bestBid = Math.max(...book.bids.map(b => parseFloat(b.price)));
+        const bestAsk = Math.min(...book.asks.map(a => parseFloat(a.price)));
         // Use ABSOLUTE spread as percentage of the 0-1 price range
-        // NOT relative spread (which produces 9800% on prediction markets)
         if (bestBid > 0 && bestAsk > bestBid) {
           market.spread = (bestAsk - bestBid) * 100; // e.g. 0.55-0.45 = 10%
         }
