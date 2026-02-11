@@ -259,8 +259,8 @@ class WeekTest {
       // Sort by volume descending (the API can't sort numerically)
       validMarkets.sort((a, b) => b.volume - a.volume);
 
-      // Keep top markets only
-      const topMarkets = validMarkets.slice(0, 50);
+      // Keep top markets — enough to find diverse opportunities
+      const topMarkets = validMarkets.slice(0, 100);
 
       logger.info('Fetched active markets via PolymarketAPI', { 
         raw: rawMarkets.length, 
