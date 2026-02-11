@@ -234,6 +234,10 @@ class WeekTest {
         const outcomePrices = (m.outcomePrices || []).map((p: string) => parseFloat(p));
         if (outcomePrices.length < 2 || isNaN(outcomePrices[0]) || outcomePrices[0] <= 0 || outcomePrices[0] >= 1) continue;
 
+        // Filter by probability range EARLY — don't waste enrichment slots
+        // on extreme long-shots or near-certainties that the strategy will reject
+        if (outcomePrices[0] < CONFIG.minProbability || outcomePrices[0] > CONFIG.maxProbability) continue;
+
         // Parse token IDs and outcome labels
         const outcomes = m.outcomes || [];
         const tokenIds = m.clobTokenIds || [];
