@@ -42,8 +42,8 @@ class DefaultStrategy {
             return { shouldTrade: false, side: 'BUY', outcomeIndex: 0, reason: `declining momentum: ${market.momentum.toFixed(1)}%`, confidence: 0 };
         }
         // ── Scoring ──
-        const volumeScore = Math.min(market.volume / 500000, 1);
-        const liquidityScore = Math.min(market.liquidity / 100000, 1);
+        const volumeScore = Math.min(market.volume / 100000, 1);
+        const liquidityScore = Math.min(market.liquidity / 25000, 1);
         const vlRatio = market.liquidity > 0 ? Math.min(market.volume / market.liquidity / 10, 1) : 0;
         let confidence;
         if (isSafeBet) {
@@ -59,14 +59,20 @@ class DefaultStrategy {
             confidence += 15;
         }
         else {
-            // ── Standard Tier (price 0.15–0.80) ──
-            const priceScore = price >= 0.30 && price <= 0.70
-                ? 1 - Math.abs(price - 0.5) * 2
-                : (1 - Math.abs(price - 0.5) * 2) * 0.5;
-            confidence = (volumeScore * 0.22 +
-                liquidityScore * 0.18 +
-                priceScore * 0.18 +
-                vlRatio * 0.12) * 100;
+            // ── Standard Tier (price 0.15–0.90) ──
+            // Price sweet-spot: 0.20-0.80 is good, outside that gets penalized less harshly
+            const priceScore = price >= 0.25 && price <= 0.75
+                ? 1 - Math.abs(price - 0.5) * 1.5 // gentle penalty near 0.5
+                : Math.max(0.15, (1 - Math.abs(price - 0.5) * 2) * 0.6);
+            confidence = (volumeScore * 0.28 +
+                liquidityScore * 0.22 +
+                priceScore * 0.15 +
+                vlRatio * 0.10) * 100;
+            // High-volume bonus: markets with > $1M volume get a flat boost
+            if (market.volume >= 1000000)
+                confidence += 10;
+            else if (market.volume >= 500000)
+                confidence += 5;
         }
         // Momentum bonus (P0 #2)
         if (market.momentum !== undefined) {

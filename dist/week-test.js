@@ -50,7 +50,7 @@ const CONFIG = {
     checkIntervalMs: 5 * 60 * 1000, // Check markets every 5 minutes
     reportIntervalMs: 5 * 60 * 1000, // Save report every 5 minutes (same as check)
     maxPositionSize: 300, // Max $300 per position (was $500 - too aggressive)
-    minProbability: 0.15, // Don't buy below 15%
+    minProbability: 0.05, // Don't buy below 5%
     maxProbability: 0.97, // Allow high-confidence "safe bets" up to 97%
     safeBetThreshold: 0.90, // Price >= 90% treated as "safe bet" tier
     safeBetMaxPositionSize: 600, // Safe bets get up to $600 (higher because lower return per share)
@@ -70,13 +70,13 @@ const CONFIG = {
     // NEW: Trailing stop
     trailingStopPercent: 5, // Trailing stop at 5% from peak
     // NEW: Better analysis thresholds
-    minConfidence: 65, // Min confidence to trade (was 70 - impossible without bonuses)
-    minVolume: 50000, // Min market volume $50k (was $1k)
-    minLiquidity: 10000, // Min market liquidity $10k (was 0)
+    minConfidence: 30, // Min confidence to trade
+    minVolume: 5000, // Min market volume $5k (low bar, scoring handles the rest)
+    minLiquidity: 1000, // Min market liquidity $1k
     // NEW: Drawdown circuit breaker
     maxDrawdownPercent: 20, // Stop trading if portfolio drops 20% from peak
     // NEW: Min time-to-expiry
-    minDaysToExpiry: 7, // Don't buy markets expiring within 7 days
+    minDaysToExpiry: 2, // Don't buy markets expiring within 2 days
 };
 class WeekTest {
     constructor(resume = false) {
@@ -710,6 +710,18 @@ class WeekTest {
                         await this.executeTrade(market, analysis);
                         existingConditionIds.add(market.conditionId);
                         newTrades++;
+                    }
+                    else {
+                        // Debug: log why top markets are rejected (first 5 only)
+                        if (newTrades === 0 && toEnrich.indexOf(market) < 5) {
+                            logger_1.logger.debug('Market rejected', {
+                                question: market.question.slice(0, 50),
+                                price: market.outcomePrices[0],
+                                confidence: analysis.confidence,
+                                reason: analysis.reason,
+                                volume: market.volume,
+                            });
+                        }
                     }
                 }
             }
