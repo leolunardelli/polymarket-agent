@@ -247,6 +247,13 @@ class WeekTest {
         const liquidity = m.liquidityNum ?? m.liquidity ?? 0;
         if (volume < 1000) continue; // Lower threshold — sort client-side
 
+        // Filter out already-expired markets (API sometimes returns them despite active=true)
+        const endDate = m.endDateIso || m.endDate || '';
+        if (endDate) {
+          const daysToExpiry = (new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+          if (daysToExpiry < 0) continue;
+        }
+
         validMarkets.push({
           conditionId: m.conditionId,
           questionId: m.questionID || m.conditionId,
@@ -318,8 +325,10 @@ class WeekTest {
       if (book.bids.length > 0 && book.asks.length > 0) {
         const bestBid = parseFloat(book.bids[0].price);
         const bestAsk = parseFloat(book.asks[0].price);
-        if (bestBid > 0) {
-          market.spread = ((bestAsk - bestBid) / bestBid) * 100;
+        // Use ABSOLUTE spread as percentage of the 0-1 price range
+        // NOT relative spread (which produces 9800% on prediction markets)
+        if (bestBid > 0 && bestAsk > bestBid) {
+          market.spread = (bestAsk - bestBid) * 100; // e.g. 0.55-0.45 = 10%
         }
       }
     } catch {
