@@ -32,12 +32,12 @@ class DefaultStrategy {
         }
         // ── Spread gate (P0 #3) — relaxed for safe bets ──
         const isSafeBet = price >= this.cfg.safeBetThreshold;
-        const spreadLimit = isSafeBet ? 8 : 5; // safe bets tolerate wider spread
+        const spreadLimit = isSafeBet ? 15 : 12; // prediction markets have wider spreads
         if (market.spread !== undefined && market.spread > spreadLimit) {
-            return { shouldTrade: false, side: 'BUY', outcomeIndex: 0, reason: `spread too wide: ${market.spread.toFixed(1)}%`, confidence: 0 };
+            return { shouldTrade: false, side: 'BUY', outcomeIndex: 0, reason: `spread too wide: ${market.spread.toFixed(1)}% (limit ${spreadLimit}%)`, confidence: 0 };
         }
         // ── Momentum gate (P0 #2) — relaxed for safe bets ──
-        const momentumFloor = isSafeBet ? -20 : -10; // safe bets tolerate more decline
+        const momentumFloor = isSafeBet ? -25 : -15; // only block severe declines
         if (market.momentum !== undefined && market.momentum < momentumFloor) {
             return { shouldTrade: false, side: 'BUY', outcomeIndex: 0, reason: `declining momentum: ${market.momentum.toFixed(1)}%`, confidence: 0 };
         }

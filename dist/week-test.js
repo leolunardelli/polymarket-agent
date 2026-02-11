@@ -675,6 +675,18 @@ class WeekTest {
                 // P1 #2: Smart money flag
                 m.smartMoneyActive = this.smartMoneyMarkets.has(m.conditionId);
             }
+            // Log enrichment summary for top 5 candidates
+            for (const m of toEnrich.slice(0, 5)) {
+                logger_1.logger.info('Enriched market', {
+                    q: m.question.slice(0, 40),
+                    price: m.outcomePrices[0],
+                    vol: m.volume,
+                    liq: m.liquidity,
+                    momentum: m.momentum,
+                    spread: m.spread,
+                    sentiment: m.sentimentScore,
+                });
+            }
             // ALWAYS check exits first (most important for realizing P&L)
             await this.checkExitSignals(markets);
             // IMPROVEMENT: Drawdown circuit breaker
@@ -695,8 +707,17 @@ class WeekTest {
             // IMPROVEMENT: Also check cash reserve before trying new trades
             const minCashReserve = CONFIG.virtualBalance * (CONFIG.minCashReservePercent / 100);
             const hasCashForTrading = portfolio.balance > minCashReserve;
+            logger_1.logger.info('Trade gate check', {
+                maxNewPositions,
+                hasCashForTrading,
+                balance: portfolio.balance,
+                minCashReserve,
+                openPositions: portfolio.positions.length,
+                toEnrichCount: toEnrich.length,
+            });
             if (maxNewPositions > 0 && hasCashForTrading) {
                 let newTrades = 0;
+                let rejected = 0;
                 // Build a set of ALL conditionIds in portfolio
                 const existingConditionIds = new Set(portfolio.positions.map(p => p.tokenId.split('_')[0]));
                 for (const market of toEnrich) {
@@ -710,23 +731,33 @@ class WeekTest {
                         await this.executeTrade(market, analysis);
                         existingConditionIds.add(market.conditionId);
                         newTrades++;
+                        logger_1.logger.info('Trade executed', {
+                            question: market.question.slice(0, 50),
+                            side: analysis.side,
+                            confidence: analysis.confidence.toFixed(1),
+                            price: market.outcomePrices[0],
+                        });
                     }
                     else {
-                        // Debug: log why top markets are rejected (first 5 only)
-                        if (newTrades === 0 && toEnrich.indexOf(market) < 5) {
-                            logger_1.logger.debug('Market rejected', {
+                        rejected++;
+                        // Log ALL rejections at INFO level (first 10 only to avoid spam)
+                        if (rejected <= 10) {
+                            logger_1.logger.info('Market rejected', {
                                 question: market.question.slice(0, 50),
                                 price: market.outcomePrices[0],
-                                confidence: analysis.confidence,
+                                confidence: analysis.confidence.toFixed(1),
                                 reason: analysis.reason,
                                 volume: market.volume,
+                                momentum: market.momentum,
+                                spread: market.spread,
                             });
                         }
                     }
                 }
+                logger_1.logger.info('Cycle trade summary', { newTrades, rejected, analyzed: toEnrich.length });
             }
             else if (!hasCashForTrading) {
-                logger_1.logger.debug('Cash reserve limit reached, waiting for exits', {
+                logger_1.logger.info('Cash reserve limit reached, waiting for exits', {
                     balance: portfolio.balance,
                     minReserve: minCashReserve,
                 });
