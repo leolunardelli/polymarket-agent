@@ -17,6 +17,10 @@ export class ThreadSafeCache<K extends string | number = string, V = any> {
   private defaultTTL: number;
   private isWriteLocked: boolean = false;
   private writeWaitQueue: Array<() => void> = [];
+  // P3 #5: Hit/miss/eviction statistics
+  private hitCount: number = 0;
+  private missCount: number = 0;
+  private evictionCount: number = 0;
 
   constructor(maxSize: number = 1000, defaultTTL: number = 60000) {
     this.cache = new Map();
@@ -32,18 +36,21 @@ export class ThreadSafeCache<K extends string | number = string, V = any> {
     const entry = this.cache.get(key);
 
     if (!entry) {
+      this.missCount++;
       return undefined;
     }
 
     // Check if entry has expired
     if (Date.now() > entry.expiresAt) {
       this.cache.delete(key);
+      this.missCount++;
       return undefined;
     }
 
     // Update access metadata (no lock needed for reads)
     entry.accessCount++;
     entry.lastAccessTime = Date.now();
+    this.hitCount++;
 
     return entry.value;
   }
@@ -134,6 +141,10 @@ export class ThreadSafeCache<K extends string | number = string, V = any> {
     utilizationPercent: number;
     totalEntries: number;
     expiredEntries: number;
+    hitCount: number;
+    missCount: number;
+    hitRate: number;
+    evictionCount: number;
   } {
     let expiredCount = 0;
 
@@ -144,12 +155,18 @@ export class ThreadSafeCache<K extends string | number = string, V = any> {
       }
     });
 
+    const totalRequests = this.hitCount + this.missCount;
+
     return {
       size: this.cache.size,
       maxSize: this.maxSize,
       utilizationPercent: (this.cache.size / this.maxSize) * 100,
       totalEntries: this.cache.size,
       expiredEntries: expiredCount,
+      hitCount: this.hitCount,
+      missCount: this.missCount,
+      hitRate: totalRequests > 0 ? (this.hitCount / totalRequests) * 100 : 0,
+      evictionCount: this.evictionCount,
     };
   }
 
@@ -226,11 +243,13 @@ export class ThreadSafeCache<K extends string | number = string, V = any> {
     // Delete expired entries first
     if (expiredKeys.length > 0) {
       expiredKeys.forEach((key) => this.cache.delete(key));
+      this.evictionCount += expiredKeys.length;
     }
 
     // If still over capacity, evict LRU
     if (this.cache.size >= this.maxSize && lruKey !== null) {
       this.cache.delete(lruKey);
+      this.evictionCount++;
     }
   }
 
@@ -258,11 +277,11 @@ export class ThreadSafeCache<K extends string | number = string, V = any> {
 }
 
 // Export singleton cache instance
-let cacheInstance: ThreadSafeCache<string> | null = null;
+let cacheInstance: ThreadSafeCache<string, any> | null = null;
 
-export function getCache(maxSize: number = 1000, ttl: number = 60000): ThreadSafeCache<string> {
+export function getCache<V = any>(maxSize: number = 1000, ttl: number = 60000): ThreadSafeCache<string, V> {
   if (!cacheInstance) {
-    cacheInstance = new ThreadSafeCache<string>(maxSize, ttl);
+    cacheInstance = new ThreadSafeCache<string, any>(maxSize, ttl);
   }
-  return cacheInstance;
+  return cacheInstance as ThreadSafeCache<string, V>;
 }

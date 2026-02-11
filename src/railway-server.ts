@@ -65,8 +65,76 @@ app.get('/api/trades', (req, res) => {
   }
 });
 
-app.get('/', (req, res) => {
+// Export as CSV
+app.get('/api/export/csv', (req, res) => {
+  try {
+    const resultsPath = path.join(process.cwd(), 'test-results.json');
+    if (!fs.existsSync(resultsPath)) {
+      res.status(404).send('No data available');
+      return;
+    }
+    
+    const data = JSON.parse(fs.readFileSync(resultsPath, 'utf-8'));
+    const positions = data.positions || [];
+    
+    // Build CSV
+    const headers = ['Symbol', 'Quantity', 'Entry Price', 'Current Price', 'PnL', 'PnL %', 'Status'];
+    const rows = positions.map((p: any) => [
+      `"${p.symbol}"`,
+      p.quantity,
+      p.entryPrice,
+      p.currentPrice,
+      p.pnl?.toFixed(2) || 0,
+      p.pnlPercent || 0,
+      'OPEN'
+    ].join(','));
+    
+    const csv = [headers.join(','), ...rows].join('\n');
+    
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=polymarket-positions-${new Date().toISOString().split('T')[0]}.csv`);
+    res.send(csv);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to export CSV' });
+  }
+});
+
+// Export as JSON
+app.get('/api/export/json', (req, res) => {
+  try {
+    const resultsPath = path.join(process.cwd(), 'test-results.json');
+    if (!fs.existsSync(resultsPath)) {
+      res.status(404).json({ error: 'No data available' });
+      return;
+    }
+    
+    const data = JSON.parse(fs.readFileSync(resultsPath, 'utf-8'));
+    
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename=polymarket-data-${new Date().toISOString().split('T')[0]}.json`);
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to export JSON' });
+  }
+});
+
+// Analytics page
+app.get('/analytics', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/analytics.html'));
+});
+
+// Dashboard routes
+app.get('/dashboard/pro', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/dashboard-pro.html'));
+});
+
+app.get('/dashboard/kawaii', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/dashboard.html'));
+});
+
+// Default to pro dashboard
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/dashboard-pro.html'));
 });
 
 // ============== WEEK TEST SPAWNER ==============

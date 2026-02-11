@@ -86,10 +86,9 @@ export interface LeaderboardSnapshot {
   totalTraders: number;
 }
 
-// Known top trader addresses from Polymarket (discovered via API testing)
+// P2 #10: Seed addresses — will be supplemented by discoverTopTraders()
 const KNOWN_TOP_TRADERS = [
   '0x6a72f61820b26b1fe4d956e17b6dc2a1ea3033ee', // kch123
-  '0x8d8f3f5c8b4d5c4e2b8a1e9c3f5d7b9a1c3e5f7d', // Example addresses
 ];
 
 class LeaderboardAnalyzer {
@@ -97,6 +96,10 @@ class LeaderboardAnalyzer {
   private snapshots: Map<string, LeaderboardSnapshot> = new Map();
   private readonly cacheTTL = 300000; // 5 minutes
   private knownTraders: string[] = [...KNOWN_TOP_TRADERS];
+  // P2 #11: Cache individual trader metrics (30 min TTL)
+  private traderMetricsCache: Map<string, { data: TraderMetrics; fetchedAt: number }> = new Map();
+  private readonly traderCacheTTL = 30 * 60 * 1000; // 30 minutes
+  private discoveryDone: boolean = false;
 
   constructor() {
     logger.info('LeaderboardAnalyzer initialized - using real Data API');
@@ -112,6 +115,55 @@ class LeaderboardAnalyzer {
       }
     }
     logger.info('Added tracked traders', { count: addresses.length });
+  }
+
+  /**
+   * P2 #10: Discover active high-volume traders from the activity API.
+   * Fetches recent trades and identifies unique wallets with many transactions.
+   */
+  async discoverTopTraders(minTrades: number = 10): Promise<string[]> {
+    if (this.discoveryDone) return this.knownTraders;
+    try {
+      const url = `${this.dataApiUrl}/activity?limit=500`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        logger.warn('Trader discovery: API error', { status: response.status });
+        return this.knownTraders;
+      }
+      const data = await response.json() as ActivityData[] | { value?: ActivityData[] };
+      const activities: ActivityData[] = Array.isArray(data) ? data : (data.value || []);
+
+      // Count trades per wallet
+      const walletCounts = new Map<string, number>();
+      for (const act of activities) {
+        const wallet = act.proxyWallet?.toLowerCase();
+        if (wallet) {
+          walletCounts.set(wallet, (walletCounts.get(wallet) || 0) + 1);
+        }
+      }
+
+      // Add wallets that appear frequently
+      const discovered: string[] = [];
+      for (const [wallet, count] of walletCounts) {
+        if (count >= minTrades && !this.knownTraders.includes(wallet)) {
+          this.knownTraders.push(wallet);
+          discovered.push(wallet);
+        }
+      }
+
+      this.discoveryDone = true;
+      logger.info('Trader discovery complete', {
+        activitiesScanned: activities.length,
+        newTraders: discovered.length,
+        totalTracked: this.knownTraders.length,
+      });
+      return this.knownTraders;
+    } catch (error) {
+      logger.error('Trader discovery failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return this.knownTraders;
+    }
   }
 
   /**
@@ -164,6 +216,11 @@ class LeaderboardAnalyzer {
    * Calculate trader metrics from REAL position and activity data
    */
   private async calculateTraderMetrics(address: string): Promise<TraderMetrics | null> {
+    // P2 #11: Check per-trader cache first
+    const cached = this.traderMetricsCache.get(address);
+    if (cached && Date.now() - cached.fetchedAt < this.traderCacheTTL) {
+      return cached.data;
+    }
     try {
       const [positions, activity] = await Promise.all([
         this.fetchPositions(address, 200),
@@ -214,7 +271,7 @@ class LeaderboardAnalyzer {
         return sum + (a.side === 'SELL' ? a.usdcSize : -a.usdcSize);
       }, 0);
 
-      return {
+      const result: TraderMetrics = {
         address,
         username,
         winRate: Math.round(winRate * 100) / 100,
@@ -228,6 +285,9 @@ class LeaderboardAnalyzer {
         lastUpdated: new Date(),
         dataSource: 'aggregate',
       };
+      // P2 #11: Store in per-trader cache
+      this.traderMetricsCache.set(address, { data: result, fetchedAt: Date.now() });
+      return result;
     } catch (error) {
       logger.error('Failed to calculate trader metrics', {
         address,

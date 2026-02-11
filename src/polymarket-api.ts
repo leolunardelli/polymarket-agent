@@ -142,12 +142,16 @@ export class PolymarketAPI {
   private readonly windowMs: number;
   private readonly retryConfig: RetryConfig;
   private readonly testMode: boolean;
+  private readonly defaultTimeoutMs: number;
+  // P2 #8: Request deduplication — deduplicate in-flight requests
+  private pendingRequests: Map<string, Promise<any>> = new Map();
   
   constructor(private config: PolymarketConfig = {}) {
     const rateLimit = config.rateLimit || { maxRequests: 100, windowMs: 60000 };
     this.maxRequests = rateLimit.maxRequests;
     this.windowMs = rateLimit.windowMs;
     this.testMode = config.testMode?.enabled || false;
+    this.defaultTimeoutMs = (config as any).timeoutMs || 30000;
     
     // Use shared thread-safe cache
     this.cache = getCache(1000, this.cacheTTL);
@@ -204,18 +208,41 @@ export class PolymarketAPI {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
   
+  // P2 #7: Normalize cache key — sort query params to avoid false misses
+  private normalizeCacheKey(url: string, options: RequestInit): string {
+    try {
+      const u = new URL(url);
+      const sorted = new URLSearchParams([...u.searchParams.entries()].sort());
+      u.search = sorted.toString();
+      // Exclude volatile headers (Authorization, etc.) from key
+      const method = (options.method || 'GET').toUpperCase();
+      return `${method}:${u.toString()}`;
+    } catch {
+      return `${url}_${JSON.stringify(options)}`;
+    }
+  }
+
   private async fetchWithRetry<T>(
     url: string,
     options: RequestInit = {},
     schema?: z.ZodSchema<T>,
-    attempt: number = 1
+    attempt: number = 1,
+    timeoutMs?: number
   ): Promise<T> {
     const maxAttempts = this.retryConfig.maxAttempts;
-    
+    const cacheKey = this.normalizeCacheKey(url, options);
+
+    // P2 #8: Deduplicate in-flight requests
+    const pending = this.pendingRequests.get(cacheKey);
+    if (pending && attempt === 1) {
+      logger.debug('Request dedup hit', { url });
+      return pending as Promise<T>;
+    }
+
+    const doFetch = async (): Promise<T> => {
     try {
       await this.enforceRateLimit();
       
-      const cacheKey = `${url}${JSON.stringify(options)}`;
       const cached = this.cache.get(cacheKey);
       if (cached) {
         logger.debug('Cache hit', { url });
@@ -236,9 +263,10 @@ export class PolymarketAPI {
       
       logger.debug('Fetching', { url, attempt, maxAttempts });
       
-      // Use AbortController for timeout support (Node.js 15+)
+      // P3 #2: Configurable timeout per-request
+      const effectiveTimeout = timeoutMs || this.defaultTimeoutMs;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
       
       let response: Response;
       try {
@@ -267,7 +295,7 @@ export class PolymarketAPI {
           );
           logger.warn('Retryable error, backing off', { error: error.message, delayMs, attempt });
           await this.delay(delayMs);
-          return this.fetchWithRetry(url, options, schema, attempt + 1);
+          return this.fetchWithRetry(url, options, schema, attempt + 1, timeoutMs);
         }
         
         throw error;
@@ -295,6 +323,20 @@ export class PolymarketAPI {
       });
       throw error;
     }
+    }; // end doFetch
+
+    // P2 #8: Store promise for dedup, clean up when done
+    if (attempt === 1) {
+      const promise = doFetch();
+      this.pendingRequests.set(cacheKey, promise);
+      try {
+        const result = await promise;
+        return result;
+      } finally {
+        this.pendingRequests.delete(cacheKey);
+      }
+    }
+    return doFetch();
   }
   
   private async fetch<T>(

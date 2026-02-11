@@ -1,0 +1,176 @@
+{
+  "analysis_timestamp": "2026-02-11T09:09:55.942609",
+  "test_results_timestamp": "2026-01-31T16:28:57.182Z",
+  "performance_summary": {
+    "return_percent": -70.8,
+    "win_rate": 0.0,
+    "actual_drawdown": 70.80020905500002,
+    "cash_deployed_percent": 89.71868405500001,
+    "realized_pnl": 0,
+    "unrealized_pnl": -27.30000000000001
+  },
+  "issues_found": [
+    {
+      "severity": "CRITICAL",
+      "issue": "Cash depletion",
+      "detail": "90% deployed"
+    },
+    {
+      "severity": "CRITICAL",
+      "issue": "No exits triggered",
+      "detail": "0% win rate"
+    },
+    {
+      "severity": "HIGH",
+      "issue": "Duplicate positions",
+      "detail": "4 duplicates"
+    },
+    {
+      "severity": "HIGH",
+      "issue": "Low-price bias",
+      "detail": "Avg entry $0.260"
+    },
+    {
+      "severity": "HIGH",
+      "issue": "No edge detection",
+      "detail": "Naive confidence scoring"
+    },
+    {
+      "severity": "MEDIUM",
+      "issue": "Drawdown tracking broken",
+      "detail": "Reported 0.02% vs actual 71%"
+    },
+    {
+      "severity": "MEDIUM",
+      "issue": "No expiry analysis",
+      "detail": "Theta risk ignored"
+    }
+  ],
+  "improved_config": {
+    "virtualBalance": 10000,
+    "testDurationMs": 604800000,
+    "checkIntervalMs": 300000,
+    "reportIntervalMs": 300000,
+    "maxPositionSize": 300,
+    "minProbability": 0.2,
+    "maxProbability": 0.8,
+    "targetProfitPercent": 12,
+    "stopLossPercent": 8,
+    "maxConcurrentPositions": 8,
+    "minCashReservePercent": 40,
+    "maxPositionAgeDays": 3,
+    "trailingStopPercent": 5,
+    "minConfidence": 70,
+    "minVolume": 50000,
+    "minLiquidity": 10000,
+    "maxPositionsPerCategory": 2,
+    "maxDrawdownPercent": 20
+  },
+  "recommendations": [
+    {
+      "priority": "P0 - CRITICAL",
+      "area": "Position Sizing",
+      "problem": "Deployed 90% of capital, only $1028 cash left",
+      "solution": "Implement Kelly Criterion with max 5% per position, maintain 40% cash reserve",
+      "expected_impact": "Reduce max loss per position from ~$950 to ~$500, keep capital for opportunities"
+    },
+    {
+      "priority": "P0 - CRITICAL",
+      "area": "Exit Strategy",
+      "problem": "0 positions closed in entire test period, 0% win rate",
+      "solution": "Add time-based exits (close after 48h if <5% gain), trailing stops, tighter thresholds",
+      "expected_impact": "Generate actual realized P&L, improve win rate from 0% to 40-60%"
+    },
+    {
+      "priority": "P0 - CRITICAL",
+      "area": "Duplicate Prevention",
+      "problem": "4 duplicate positions in same markets",
+      "solution": "Track conditionId of open positions, skip markets already in portfolio",
+      "expected_impact": "Better diversification, reduce concentration risk"
+    },
+    {
+      "priority": "P1 - HIGH",
+      "area": "Market Analysis",
+      "problem": "Simple volume/liquidity/price scoring with 50% threshold lets bad trades through",
+      "solution": "Add: time-to-expiry score, price momentum (compare to 24h ago), min volume $50k, confidence >= 70%",
+      "expected_impact": "Filter out 60% of bad trades, focus on higher-conviction opportunities"
+    },
+    {
+      "priority": "P1 - HIGH",
+      "area": "Price Range",
+      "problem": "Average entry $0.260 - buying extreme long-shots that rarely pay",
+      "solution": "Narrow price range to 0.20-0.80, prefer 0.30-0.70 for better risk/reward",
+      "expected_impact": "Higher probability of profit, smaller position sizes needed"
+    },
+    {
+      "priority": "P1 - HIGH",
+      "area": "Cash Management",
+      "problem": "No minimum cash reserve, bot can deploy 100% of capital",
+      "solution": "Enforce 40% minimum cash reserve, scale position size with available capital",
+      "expected_impact": "Always have capital for new opportunities and dip buying"
+    },
+    {
+      "priority": "P2 - MEDIUM",
+      "area": "Sentiment Integration",
+      "problem": "SentimentAnalyzer exists but is never used in trading decisions",
+      "solution": "Integrate sentiment signals as additional confidence factor",
+      "expected_impact": "Additional edge from market sentiment, +5-10% better signal quality"
+    },
+    {
+      "priority": "P2 - MEDIUM",
+      "area": "Risk Management",
+      "problem": "Max drawdown reported as 0.02% but actual is 71%",
+      "solution": "Track portfolio value every cycle, implement circuit breakers at 20% drawdown",
+      "expected_impact": "Stop trading during adverse conditions, preserve capital"
+    },
+    {
+      "priority": "P2 - MEDIUM",
+      "area": "Diversification",
+      "problem": "No sector/category awareness, could load up on correlated markets",
+      "solution": "Max 2 positions per market category, spread across political/sports/crypto/economics",
+      "expected_impact": "Reduce correlation risk, smoother equity curve"
+    }
+  ],
+  "scorecard": {
+    "Return": {
+      "grade": "F",
+      "value": "-70.8%",
+      "target": "> 0%"
+    },
+    "Win Rate": {
+      "grade": "F",
+      "value": "0.0%",
+      "target": "> 50%"
+    },
+    "Cash Mgmt": {
+      "grade": "F",
+      "value": "$1028 left",
+      "target": "> $4,000"
+    },
+    "Drawdown": {
+      "grade": "F",
+      "value": "70.8%",
+      "target": "< 20%"
+    },
+    "Diversification": {
+      "grade": "D",
+      "value": "6 unique",
+      "target": "> 8 unique"
+    },
+    "Trade Count": {
+      "grade": "C",
+      "value": "5",
+      "target": "10-50"
+    },
+    "Exit Discipline": {
+      "grade": "F",
+      "value": "0 exits",
+      "target": "> 50% closed"
+    },
+    "Strategy Edge": {
+      "grade": "F",
+      "value": "None detected",
+      "target": "Positive alpha"
+    }
+  }
+}

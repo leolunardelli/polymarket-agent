@@ -49,6 +49,10 @@ export interface SimulationMetrics {
   largestLoss: number;
   maxDrawdown: number;
   returnPercentage: number;
+  // P2 #5: Profit factor (gross wins / gross losses)
+  profitFactor: number;
+  // P3 #1: Sharpe ratio
+  sharpeRatio: number;
 }
 
 class TradingSimulator {
@@ -99,8 +103,12 @@ class TradingSimulator {
     this.validateTradeParams(tokenId, symbol, quantity, price);
 
     const totalValue = quantity * price;
-    const fees = totalValue * 0.001; // 0.1% fee
-    const totalCost = totalValue + fees;
+    // P1 #5: Slippage simulation — 0.1% base + impact based on order size
+    const slippagePct = 0.001 + (totalValue / 50000) * 0.05; // bigger orders = more slippage
+    const slippageAmount = totalValue * slippagePct;
+    // P1 #6: Realistic taker fee (1.5%) — virtual traders are always takers
+    const fees = totalValue * 0.015;
+    const totalCost = totalValue + fees + slippageAmount;
 
     if (this.balance < totalCost) {
       logger.warn('Insufficient virtual balance for buy order', {
@@ -187,8 +195,12 @@ class TradingSimulator {
     }
 
     const totalValue = quantity * price;
-    const fees = totalValue * 0.001; // 0.1% fee
-    const netProceeds = totalValue - fees;
+    // P1 #5: Slippage simulation — 0.1% base + impact based on order size
+    const slippagePct = 0.001 + (totalValue / 50000) * 0.05;
+    const slippageAmount = totalValue * slippagePct;
+    // P1 #6: Realistic taker fee (1.5%)
+    const fees = totalValue * 0.015;
+    const netProceeds = totalValue - fees - slippageAmount;
 
     // Add to balance
     this.balance += netProceeds;
@@ -328,7 +340,42 @@ class TradingSimulator {
       returnPercentage:
         ((portfolio.totalValue - this.initialBalance) / this.initialBalance) *
         100,
+      // P2 #5: Profit factor
+      profitFactor: this.calculateProfitFactor(wins, losses),
+      // P3 #1: Sharpe ratio (annualised from 5-min cycles)
+      sharpeRatio: this.calculateSharpeRatio(),
     };
+  }
+
+  /**
+   * P2 #5: Profit factor = gross wins / gross losses
+   */
+  private calculateProfitFactor(wins: number[], losses: number[]): number {
+    const grossWins = wins.reduce((a, b) => a + b, 0);
+    const grossLosses = Math.abs(losses.reduce((a, b) => a + b, 0));
+    return grossLosses > 0 ? Math.round((grossWins / grossLosses) * 100) / 100 : grossWins > 0 ? Infinity : 0;
+  }
+
+  /**
+   * P3 #1: Sharpe ratio from portfolio value history
+   * Annualised assuming 5-min cycles (105,120 cycles/year)
+   */
+  private calculateSharpeRatio(): number {
+    if (this.portfolioValueHistory.length < 3) return 0;
+    const returns: number[] = [];
+    for (let i = 1; i < this.portfolioValueHistory.length; i++) {
+      const prev = this.portfolioValueHistory[i - 1].value;
+      if (prev > 0) {
+        returns.push((this.portfolioValueHistory[i].value - prev) / prev);
+      }
+    }
+    if (returns.length < 2) return 0;
+    const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+    const variance = returns.reduce((s, r) => s + (r - mean) ** 2, 0) / (returns.length - 1);
+    const std = Math.sqrt(variance);
+    if (std === 0) return 0;
+    const cyclesPerYear = 105120;
+    return Math.round((mean / std) * Math.sqrt(cyclesPerYear) * 100) / 100;
   }
 
   /**
@@ -355,13 +402,18 @@ class TradingSimulator {
 
   /**
    * Record portfolio value to history (includes positions value)
+   * Can be called externally to track value between trades
    */
-  private updatePortfolioHistory(): void {
+  updatePortfolioHistory(): void {
     const portfolio = this.getPortfolioState();
     this.portfolioValueHistory.push({
       timestamp: new Date(),
       value: portfolio.totalValue,
     });
+    // P2 #4: Prune history to prevent unbounded growth
+    if (this.portfolioValueHistory.length > 2000) {
+      this.portfolioValueHistory = this.portfolioValueHistory.slice(-1000);
+    }
   }
 
   /**
@@ -408,6 +460,7 @@ class TradingSimulator {
       pnl?: number;
       pnlPercent?: string;
       pnlPercentage?: number;
+      createdAt?: string;  // P2 #6: accept serialised date
     }>;
   }): void {
     this.balance = state.balance;
@@ -429,7 +482,8 @@ class TradingSimulator {
         currentPrice: pos.currentPrice,
         pnl: pos.pnl ?? calculatedPnL,
         pnlPercentage: pos.pnlPercentage ?? (parseFloat(pos.pnlPercent || '0') || calculatedPnLPercent),
-        createdAt: new Date(),
+        // P2 #6: Restore original createdAt so time-based exits work after resume
+        createdAt: pos.createdAt ? new Date(pos.createdAt) : new Date(),
         updatedAt: new Date(),
       };
       this.positions.set(position.tokenId, position);

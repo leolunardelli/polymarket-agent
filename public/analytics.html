@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📊 Poly-chan Analytics</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --pink-light: #FFB7C5;
+      --pink-main: #FF69B4;
+      --pink-dark: #FF1493;
+      --purple-light: #E6E6FA;
+      --purple-main: #DDA0DD;
+      --blue-light: #B0E0E6;
+      --blue-accent: #87CEEB;
+      --gold: #FFD700;
+      --green: #98FB98;
+      --red: #FF6B6B;
+      --dark: #2D2D44;
+      --darker: #1a1a2e;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #1a1a2e 100%);
+      min-height: 100vh;
+      color: #fff;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 0;
+      border-bottom: 2px solid var(--pink-main);
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      font-size: 2rem;
+      background: linear-gradient(45deg, var(--pink-main), var(--purple-main));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 20px;
+    }
+
+    .nav-links a {
+      color: var(--pink-light);
+      text-decoration: none;
+      padding: 10px 20px;
+      border-radius: 20px;
+      background: rgba(255, 105, 180, 0.1);
+      transition: all 0.3s;
+    }
+
+    .nav-links a:hover, .nav-links a.active {
+      background: var(--pink-main);
+      color: white;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, rgba(255, 105, 180, 0.1), rgba(221, 160, 221, 0.1));
+      border: 1px solid rgba(255, 105, 180, 0.3);
+      border-radius: 15px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .stat-card .label {
+      color: var(--pink-light);
+      font-size: 0.9rem;
+      margin-bottom: 5px;
+    }
+
+    .stat-card .value {
+      font-size: 1.8rem;
+      font-weight: 700;
+    }
+
+    .stat-card .change {
+      font-size: 0.85rem;
+      margin-top: 5px;
+    }
+
+    .positive { color: var(--green); }
+    .negative { color: var(--red); }
+
+    /* Charts Section */
+    .charts-section {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+
+    .chart-card {
+      background: rgba(45, 45, 68, 0.8);
+      border: 1px solid rgba(255, 105, 180, 0.3);
+      border-radius: 15px;
+      padding: 20px;
+    }
+
+    .chart-card h3 {
+      color: var(--pink-main);
+      margin-bottom: 15px;
+      font-size: 1.2rem;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 300px;
+    }
+
+    /* Trade History Table */
+    .history-section {
+      background: rgba(45, 45, 68, 0.8);
+      border: 1px solid rgba(255, 105, 180, 0.3);
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+
+    .history-section h3 {
+      color: var(--pink-main);
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .export-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .export-btn {
+      background: var(--pink-main);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.85rem;
+      transition: all 0.3s;
+    }
+
+    .export-btn:hover {
+      background: var(--pink-dark);
+      transform: translateY(-2px);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 105, 180, 0.2);
+    }
+
+    th {
+      color: var(--pink-main);
+      font-weight: 600;
+      background: rgba(255, 105, 180, 0.1);
+    }
+
+    tr:hover {
+      background: rgba(255, 105, 180, 0.05);
+    }
+
+    .badge {
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .badge-buy { background: var(--green); color: #1a1a2e; }
+    .badge-sell { background: var(--red); color: white; }
+    .badge-open { background: var(--blue-accent); color: #1a1a2e; }
+
+    /* Performance Metrics */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .metric-card {
+      background: rgba(45, 45, 68, 0.8);
+      border: 1px solid rgba(255, 105, 180, 0.3);
+      border-radius: 15px;
+      padding: 20px;
+    }
+
+    .metric-card h4 {
+      color: var(--pink-main);
+      margin-bottom: 15px;
+      font-size: 1rem;
+    }
+
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .metric-row:last-child {
+      border-bottom: none;
+    }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--pink-light);
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      border: 3px solid rgba(255, 105, 180, 0.3);
+      border-top-color: var(--pink-main);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header { flex-direction: column; gap: 15px; }
+      .charts-section { grid-template-columns: 1fr; }
+      .nav-links { flex-wrap: wrap; justify-content: center; }
+      table { font-size: 0.85rem; }
+      th, td { padding: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>📊 Poly-chan Analytics</h1>
+      <nav class="nav-links">
+        <a href="/">🏠 Dashboard</a>
+        <a href="/analytics.html" class="active">📊 Analytics</a>
+        <a href="/api/export/csv" target="_blank">📥 Export CSV</a>
+      </nav>
+    </header>
+
+    <!-- Stats Overview -->
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card">
+        <div class="label">Portfolio Value</div>
+        <div class="value" id="portfolioValue">$0</div>
+        <div class="change" id="portfolioChange">+0%</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Total PnL</div>
+        <div class="value" id="totalPnl">$0</div>
+        <div class="change" id="pnlChange">0%</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Win Rate</div>
+        <div class="value" id="winRate">0%</div>
+        <div class="change" id="winLoss">0W / 0L</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Max Drawdown</div>
+        <div class="value" id="maxDrawdown">0%</div>
+        <div class="change">Largest dip</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Open Positions</div>
+        <div class="value" id="openPositions">0</div>
+        <div class="change" id="totalTrades">0 trades total</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Test Progress</div>
+        <div class="value" id="progress">0%</div>
+        <div class="change" id="timeRemaining">168h remaining</div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-section">
+      <div class="chart-card">
+        <h3>📈 Portfolio Value Over Time</h3>
+        <div class="chart-container">
+          <canvas id="portfolioChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>🥧 Position Allocation</h3>
+        <div class="chart-container">
+          <canvas id="allocationChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Performance Metrics -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <h4>💰 Profit & Loss Breakdown</h4>
+        <div class="metric-row">
+          <span>Unrealized PnL</span>
+          <span id="unrealizedPnl" class="positive">$0</span>
+        </div>
+        <div class="metric-row">
+          <span>Realized PnL</span>
+          <span id="realizedPnl">$0</span>
+        </div>
+        <div class="metric-row">
+          <span>Total Fees Paid</span>
+          <span id="feesPaid">$0</span>
+        </div>
+        <div class="metric-row">
+          <span>Average Trade Size</span>
+          <span id="avgTradeSize">$0</span>
+        </div>
+      </div>
+      <div class="metric-card">
+        <h4>📊 Trading Statistics</h4>
+        <div class="metric-row">
+          <span>Markets Analyzed</span>
+          <span id="marketsAnalyzed">0</span>
+        </div>
+        <div class="metric-row">
+          <span>Cycles Completed</span>
+          <span id="cyclesCompleted">0</span>
+        </div>
+        <div class="metric-row">
+          <span>Avg Holding Time</span>
+          <span id="avgHoldingTime">-</span>
+        </div>
+        <div class="metric-row">
+          <span>Best Position</span>
+          <span id="bestPosition" class="positive">-</span>
+        </div>
+        <div class="metric-row">
+          <span>Worst Position</span>
+          <span id="worstPosition" class="negative">-</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Position Details -->
+    <div class="history-section">
+      <h3>
+        📂 Current Positions
+        <div class="export-buttons">
+          <button class="export-btn" onclick="exportCSV()">📥 CSV</button>
+          <button class="export-btn" onclick="exportJSON()">📥 JSON</button>
+        </div>
+      </h3>
+      <table id="positionsTable">
+        <thead>
+          <tr>
+            <th>Market</th>
+            <th>Side</th>
+            <th>Quantity</th>
+            <th>Entry Price</th>
+            <th>Current Price</th>
+            <th>PnL</th>
+            <th>PnL %</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="positionsBody">
+          <tr><td colspan="8" class="loading"><div class="spinner"></div><br>Loading positions...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Trade History -->
+    <div class="history-section">
+      <h3>📜 Trade History</h3>
+      <table id="historyTable">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Action</th>
+            <th>Market</th>
+            <th>Quantity</th>
+            <th>Price</th>
+            <th>Value</th>
+            <th>PnL</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr><td colspan="7" class="loading">Trade history will appear as trades are made</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let portfolioChart = null;
+    let allocationChart = null;
+    let portfolioHistory = [];
+    let lastData = null;
+
+    // Fetch data and update dashboard
+    async function fetchData() {
+      try {
+        const response = await fetch('/api/status?t=' + Date.now());
+        const data = await response.json();
+        
+        if (data.error) {
+          console.log('Waiting for data...');
+          return;
+        }
+
+        lastData = data;
+        updateStats(data);
+        updatePositionsTable(data.positions || []);
+        updateCharts(data);
+        
+        // Track portfolio history
+        portfolioHistory.push({
+          time: new Date(),
+          value: data.performance?.totalValue || 10000
+        });
+        
+        // Keep last 100 points
+        if (portfolioHistory.length > 100) {
+          portfolioHistory.shift();
+        }
+
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    }
+
+    function updateStats(data) {
+      const perf = data.performance || {};
+      const activity = data.activity || {};
+      const testInfo = data.testInfo || {};
+
+      // Portfolio value
+      const portfolioValue = perf.totalValue || 10000;
+      document.getElementById('portfolioValue').textContent = '$' + portfolioValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      
+      const returnPct = parseFloat(perf.returnPercent) || 0;
+      const portfolioChange = document.getElementById('portfolioChange');
+      portfolioChange.textContent = (returnPct >= 0 ? '+' : '') + returnPct.toFixed(2) + '%';
+      portfolioChange.className = 'change ' + (returnPct >= 0 ? 'positive' : 'negative');
+
+      // Total PnL
+      const totalPnl = perf.totalPnL || 0;
+      document.getElementById('totalPnl').textContent = '$' + totalPnl.toFixed(2);
+      document.getElementById('totalPnl').className = 'value ' + (totalPnl >= 0 ? 'positive' : 'negative');
+      document.getElementById('pnlChange').textContent = (totalPnl >= 0 ? '+' : '') + returnPct.toFixed(2) + '% return';
+      document.getElementById('pnlChange').className = 'change ' + (totalPnl >= 0 ? 'positive' : 'negative');
+
+      // Win rate
+      document.getElementById('winRate').textContent = (parseFloat(perf.winRate) || 0).toFixed(1) + '%';
+      document.getElementById('winLoss').textContent = (activity.winningTrades || 0) + 'W / ' + (activity.losingTrades || 0) + 'L';
+
+      // Max drawdown
+      document.getElementById('maxDrawdown').textContent = (parseFloat(perf.maxDrawdown) || 0).toFixed(2) + '%';
+
+      // Open positions
+      document.getElementById('openPositions').textContent = activity.openPositions || 0;
+      document.getElementById('totalTrades').textContent = (activity.totalTrades || 0) + ' trades total';
+
+      // Progress
+      document.getElementById('progress').textContent = (parseFloat(testInfo.percentComplete) || 0).toFixed(1) + '%';
+      document.getElementById('timeRemaining').textContent = (parseFloat(testInfo.remainingHours) || 168).toFixed(1) + 'h remaining';
+
+      // Detailed metrics
+      document.getElementById('unrealizedPnl').textContent = '$' + (perf.unrealizedPnL || 0).toFixed(2);
+      document.getElementById('unrealizedPnl').className = (perf.unrealizedPnL || 0) >= 0 ? 'positive' : 'negative';
+      document.getElementById('realizedPnl').textContent = '$' + (perf.realizedPnL || 0).toFixed(2);
+      document.getElementById('marketsAnalyzed').textContent = activity.marketsAnalyzed || 0;
+      document.getElementById('cyclesCompleted').textContent = activity.cyclesCompleted || 0;
+
+      // Calculate avg trade size
+      const avgSize = activity.totalTrades > 0 ? (10000 - (perf.currentBalance || 10000)) / activity.totalTrades : 0;
+      document.getElementById('avgTradeSize').textContent = '$' + Math.abs(avgSize).toFixed(2);
+
+      // Find best/worst positions
+      const positions = data.positions || [];
+      if (positions.length > 0) {
+        const sorted = [...positions].sort((a, b) => parseFloat(b.pnlPercent) - parseFloat(a.pnlPercent));
+        const best = sorted[0];
+        const worst = sorted[sorted.length - 1];
+        document.getElementById('bestPosition').textContent = '+' + parseFloat(best.pnlPercent).toFixed(2) + '%';
+        document.getElementById('worstPosition').textContent = parseFloat(worst.pnlPercent).toFixed(2) + '%';
+      }
+    }
+
+    function updatePositionsTable(positions) {
+      const tbody = document.getElementById('positionsBody');
+      
+      if (positions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color: var(--pink-light);">No open positions</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = positions.map(pos => {
+        const pnl = parseFloat(pos.pnl) || 0;
+        const pnlPct = parseFloat(pos.pnlPercent) || 0;
+        const pnlClass = pnl >= 0 ? 'positive' : 'negative';
+        const side = pos.symbol.includes('_Yes') ? 'YES' : 'NO';
+        
+        return `
+          <tr>
+            <td>${pos.symbol.replace(/_Yes|_No/g, '').slice(0, 40)}...</td>
+            <td><span class="badge badge-${side === 'YES' ? 'buy' : 'sell'}">${side}</span></td>
+            <td>${pos.quantity.toLocaleString()}</td>
+            <td>$${pos.entryPrice.toFixed(4)}</td>
+            <td>$${pos.currentPrice.toFixed(4)}</td>
+            <td class="${pnlClass}">$${pnl.toFixed(2)}</td>
+            <td class="${pnlClass}">${pnl >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%</td>
+            <td><span class="badge badge-open">OPEN</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function updateCharts(data) {
+      // Portfolio Chart
+      const ctx1 = document.getElementById('portfolioChart').getContext('2d');
+      
+      if (portfolioChart) {
+        portfolioChart.data.labels = portfolioHistory.map(p => p.time.toLocaleTimeString());
+        portfolioChart.data.datasets[0].data = portfolioHistory.map(p => p.value);
+        portfolioChart.update('none');
+      } else {
+        portfolioChart = new Chart(ctx1, {
+          type: 'line',
+          data: {
+            labels: portfolioHistory.map(p => p.time.toLocaleTimeString()),
+            datasets: [{
+              label: 'Portfolio Value',
+              data: portfolioHistory.map(p => p.value),
+              borderColor: '#FF69B4',
+              backgroundColor: 'rgba(255, 105, 180, 0.1)',
+              fill: true,
+              tension: 0.4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              y: {
+                beginAtZero: false,
+                grid: { color: 'rgba(255, 105, 180, 0.1)' },
+                ticks: { color: '#FFB7C5' }
+              },
+              x: {
+                grid: { display: false },
+                ticks: { color: '#FFB7C5', maxTicksLimit: 6 }
+              }
+            }
+          }
+        });
+      }
+
+      // Allocation Chart
+      const positions = data.positions || [];
+      if (positions.length > 0) {
+        const ctx2 = document.getElementById('allocationChart').getContext('2d');
+        const labels = positions.map(p => p.symbol.slice(0, 20) + '...');
+        const values = positions.map(p => p.quantity * p.currentPrice);
+        const colors = [
+          '#FF69B4', '#DDA0DD', '#87CEEB', '#98FB98', '#FFD700',
+          '#FF6B6B', '#B0E0E6', '#E6E6FA', '#F0E68C', '#ADD8E6'
+        ];
+
+        if (allocationChart) {
+          allocationChart.data.labels = labels;
+          allocationChart.data.datasets[0].data = values;
+          allocationChart.update('none');
+        } else {
+          allocationChart = new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+              labels: labels,
+              datasets: [{
+                data: values,
+                backgroundColor: colors,
+                borderWidth: 0
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'right',
+                  labels: { color: '#FFB7C5', font: { size: 10 } }
+                }
+              }
+            }
+          });
+        }
+      }
+    }
+
+    function exportCSV() {
+      window.open('/api/export/csv?t=' + Date.now(), '_blank');
+    }
+
+    function exportJSON() {
+      window.open('/api/export/json?t=' + Date.now(), '_blank');
+    }
+
+    // Initial fetch and interval
+    fetchData();
+    setInterval(fetchData, 10000); // Update every 10 seconds
+  </script>
+</body>
+</html>
