@@ -205,12 +205,23 @@ export class DefaultStrategy implements Strategy {
         };
       }
 
-      const outcomeIndex = price < 0.5 ? 0 : 1;
+      // For low-probability markets (< 15%), buy NO (outcome 1) since
+      // the event is unlikely — we profit when it stays low and resolves NO.
+      // For mid-range, buy YES if < 0.5, NO if >= 0.5 (contrarian on high side).
+      let outcomeIndex: number;
+      let side: 'BUY' | 'SELL' = 'BUY';
+      if (price < 0.15) {
+        outcomeIndex = 1; // Buy NO — event is unlikely
+      } else if (price < 0.5) {
+        outcomeIndex = 0; // Buy YES — undervalued
+      } else {
+        outcomeIndex = 1; // Buy NO — overvalued
+      }
       return {
         shouldTrade: true,
-        side: 'BUY',
+        side,
         outcomeIndex,
-        reason: `High confidence (vol=$${market.volume.toFixed(0)}, liq=$${market.liquidity.toFixed(0)})`,
+        reason: `High confidence (vol=$${market.volume.toFixed(0)}, liq=$${market.liquidity.toFixed(0)}, dir=${price < 0.15 ? 'NO-longshot' : price < 0.5 ? 'YES' : 'NO'})`,
         confidence,
       };
     }

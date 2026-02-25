@@ -1,0 +1,15 @@
+﻿node.exe : error: unexpected argument '--num' found
+No C:\Users\bomba\AppData\Roaming\npm\railway.ps1:24 caractere:5
++     & "node$exe"  "$basedir/node_modules/@railway/cli/bin/railway.js" ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (error: unexpected argument '--num 
+   ' found:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+  tip: to pass '--num' as a value, use '-- --num'
+
+Usage: railway.exe logs [OPTIONS] [DEPLOYMENT_ID]
+
+For more information, try '--help'.
+

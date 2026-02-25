@@ -56,14 +56,17 @@ const CONFIG = {
     safeBetMaxPositionSize: 600, // Safe bets get up to $600 (higher because lower return per share)
     targetProfitPercent: 12, // Take profit at 12% gain (was 20% - never triggered)
     stopLossPercent: 8, // Stop loss at 8% loss (was 15% - too much risk)
-    maxConcurrentPositions: 8, // Max 8 open positions at once (was 10)
+    maxConcurrentPositions: 12, // More slots = more diverse opportunities (was 8)
+    maxLowPricePositions: 3, // Max positions with entry price < 0.10 to avoid long-shot concentration
+    lowPriceThreshold: 0.10, // What counts as "low price"
+    rebuyCooldownMs: 60 * 60 * 1000, // 1-hour cooldown before re-buying a closed market
     logFile: 'test-results.json',
     // P2 #1: Fetch more markets
     marketFetchLimit: 200,
     // P2 #2: Max positions per category/tag
     maxPositionsPerCategory: 3,
     // NEW: Cash management
-    minCashReservePercent: 40, // Keep 40% of starting balance as cash reserve
+    minCashReservePercent: 25, // Keep 25% of starting balance as cash reserve (was 40% — too much idle cash)
     // NEW: Time-based exit
     maxPositionAgeDays: 3, // Close positions older than 3 days if < 5% gain
     maxPositionAgeMinGain: 5, // Min gain % to keep position past age limit
@@ -88,6 +91,10 @@ class WeekTest {
         this.performanceSnapshots = [];
         // P2 #2: Track positions per category
         this.categoryPositionCount = new Map();
+        // Track positions that have already taken a partial TP (prevent decay-by-halving)
+        this.partialTPTaken = new Set();
+        // Track recently closed markets for re-buy cooldown
+        this.recentlyClosed = new Map(); // conditionId -> closeTimestamp
         this.analyzer = new leaderboard_analyzer_1.LeaderboardAnalyzer();
         this.api = new polymarket_api_1.PolymarketAPI();
         this.sentimentAnalyzer = new sentiment_1.SentimentAnalyzer();
@@ -515,6 +522,11 @@ class WeekTest {
             };
             const exitSignal = this.strategy.shouldExit({ ...position, peakPrice }, snapshot);
             if (exitSignal.shouldExit) {
+                // FIX: Prevent partial-TP decay — if this position already partial-exited,
+                // skip further partial exits (only allow full exit signals through)
+                if (exitSignal.exitQuantityPercent < 100 && this.partialTPTaken.has(position.tokenId)) {
+                    continue; // Already partial-exited once, wait for full TP/SL/trailing
+                }
                 try {
                     // P1 #4: Partial exit support — sell only exitQuantityPercent
                     const sellQty = Math.max(1, Math.floor(position.quantity * exitSignal.exitQuantityPercent / 100));
@@ -544,12 +556,20 @@ class WeekTest {
                         price: currentPrice,
                     });
                     this.state.tradesExecuted++;
-                    // Update category count if fully closed
+                    // Track partial TP to prevent repeated halving
+                    if (exitSignal.exitQuantityPercent < 100) {
+                        this.partialTPTaken.add(position.tokenId);
+                    }
+                    // Update category count and cooldown if fully closed
                     if (sellQty >= position.quantity) {
                         const tag = market.tags?.[0] || 'other';
                         const count = this.categoryPositionCount.get(tag) || 0;
                         if (count > 0)
                             this.categoryPositionCount.set(tag, count - 1);
+                        // Mark this market on cooldown so we don't immediately re-buy
+                        this.recentlyClosed.set(conditionId, Date.now());
+                        // Clean up partial TP tracker
+                        this.partialTPTaken.delete(position.tokenId);
                     }
                 }
                 catch (error) {
@@ -733,12 +753,24 @@ class WeekTest {
                 let rejected = 0;
                 // Build a set of ALL conditionIds in portfolio
                 const existingConditionIds = new Set(portfolio.positions.map(p => p.tokenId.split('_')[0]));
+                // Count existing low-price positions for concentration limit
+                const lowPriceCount = portfolio.positions.filter(p => p.entryPrice < CONFIG.lowPriceThreshold).length;
                 for (const market of toEnrich) {
                     if (newTrades >= maxNewPositions)
                         break;
                     // Duplicate check
                     if (existingConditionIds.has(market.conditionId))
                         continue;
+                    // Re-buy cooldown — don't re-enter a market within 1 hour of closing
+                    const closedAt = this.recentlyClosed.get(market.conditionId);
+                    if (closedAt && (Date.now() - closedAt) < CONFIG.rebuyCooldownMs) {
+                        continue;
+                    }
+                    // Low-price concentration limit
+                    const marketPrice = market.outcomePrices[0];
+                    if (marketPrice < CONFIG.lowPriceThreshold && lowPriceCount >= CONFIG.maxLowPricePositions) {
+                        continue;
+                    }
                     const analysis = this.analyzeMarket(market);
                     if (analysis.shouldTrade) {
                         await this.executeTrade(market, analysis);
