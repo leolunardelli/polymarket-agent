@@ -18,6 +18,7 @@ export interface MarketSnapshot {
     spread?: number;
     sentimentScore?: number;
     smartMoneyActive?: boolean;
+    smartMoneyOutcomeIndex?: number;
     tags?: string[];
 }
 export interface TradeSignal {

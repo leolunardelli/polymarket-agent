@@ -87,6 +87,7 @@ class WeekTest {
         this.resumedFromSave = false;
         // P1 #2: Markets where top traders are active
         this.smartMoneyMarkets = new Set();
+        this.smartMoneyOutcomeByMarket = new Map();
         // P2 #13: Performance snapshots for /api/history
         this.performanceSnapshots = [];
         // P2 #2: Track positions per category
@@ -330,18 +331,13 @@ class WeekTest {
      */
     async refreshSmartMoney() {
         try {
-            // P2 #10: Discover traders first
-            await this.analyzer.discoverTopTraders(5);
-            const topTraders = await this.analyzer.getTopTradersByWinRate('week', 10);
-            this.smartMoneyMarkets.clear();
-            for (const trader of topTraders) {
-                if (trader.address) {
-                    // Mark conditionIds these traders are active in (from their positions)
-                    // We tag them simply by address being present — the real enrichment
-                    // happens via the snapshot's smartMoneyActive flag.
-                }
-            }
-            logger_1.logger.info('Smart money data refreshed', { topTraders: topTraders.length });
+            const signals = await this.analyzer.getSmartMoneySignals('week', 30);
+            this.smartMoneyMarkets = signals.marketSet;
+            this.smartMoneyOutcomeByMarket = signals.preferredOutcome;
+            logger_1.logger.info('Smart money data refreshed', {
+                selectedTraders: signals.selectedTraders,
+                smartMoneyMarkets: signals.marketSet.size,
+            });
         }
         catch (error) {
             logger_1.logger.warn('Smart money refresh failed', {
@@ -389,6 +385,7 @@ class WeekTest {
             spread: market.spread,
             sentimentScore: market.sentimentScore,
             smartMoneyActive: market.smartMoneyActive,
+            smartMoneyOutcomeIndex: market.smartMoneyOutcomeIndex,
             tags: market.tags,
         };
         return this.strategy.analyze(snapshot);
@@ -707,6 +704,7 @@ class WeekTest {
                 await this.enrichTags(m);
                 // P1 #2: Smart money flag
                 m.smartMoneyActive = this.smartMoneyMarkets.has(m.conditionId);
+                m.smartMoneyOutcomeIndex = this.smartMoneyOutcomeByMarket.get(m.conditionId);
             }
             // Log enrichment summary for top 5 candidates
             for (const m of toEnrich.slice(0, 5)) {

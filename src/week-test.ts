@@ -74,6 +74,7 @@ interface MarketData {
   spread?: number;
   sentimentScore?: number;
   smartMoneyActive?: boolean;
+  smartMoneyOutcomeIndex?: number;
   tags?: string[];
   tokenIds?: string[];
 }
@@ -102,6 +103,7 @@ class WeekTest {
   private resumedFromSave: boolean = false;
   // P1 #2: Markets where top traders are active
   private smartMoneyMarkets: Set<string> = new Set();
+  private smartMoneyOutcomeByMarket: Map<string, number> = new Map();
   // P2 #13: Performance snapshots for /api/history
   private performanceSnapshots: Array<{ timestamp: string; totalValue: number; balance: number }> = [];
   // P2 #2: Track positions per category
@@ -357,18 +359,13 @@ class WeekTest {
    */
   private async refreshSmartMoney(): Promise<void> {
     try {
-      // P2 #10: Discover traders first
-      await this.analyzer.discoverTopTraders(5);
-      const topTraders = await this.analyzer.getTopTradersByWinRate('week', 10);
-      this.smartMoneyMarkets.clear();
-      for (const trader of topTraders) {
-        if (trader.address) {
-          // Mark conditionIds these traders are active in (from their positions)
-          // We tag them simply by address being present — the real enrichment
-          // happens via the snapshot's smartMoneyActive flag.
-        }
-      }
-      logger.info('Smart money data refreshed', { topTraders: topTraders.length });
+      const signals = await this.analyzer.getSmartMoneySignals('week', 30);
+      this.smartMoneyMarkets = signals.marketSet;
+      this.smartMoneyOutcomeByMarket = signals.preferredOutcome;
+      logger.info('Smart money data refreshed', {
+        selectedTraders: signals.selectedTraders,
+        smartMoneyMarkets: signals.marketSet.size,
+      });
     } catch (error) {
       logger.warn('Smart money refresh failed', {
         error: error instanceof Error ? error.message : String(error),
@@ -417,6 +414,7 @@ class WeekTest {
       spread: market.spread,
       sentimentScore: market.sentimentScore,
       smartMoneyActive: market.smartMoneyActive,
+      smartMoneyOutcomeIndex: market.smartMoneyOutcomeIndex,
       tags: market.tags,
     };
     return this.strategy.analyze(snapshot);
@@ -786,6 +784,7 @@ class WeekTest {
         await this.enrichTags(m);
         // P1 #2: Smart money flag
         m.smartMoneyActive = this.smartMoneyMarkets.has(m.conditionId);
+        m.smartMoneyOutcomeIndex = this.smartMoneyOutcomeByMarket.get(m.conditionId);
       }
 
       // Log enrichment summary for top 5 candidates

@@ -90,7 +90,7 @@ class DefaultStrategy {
         }
         // Smart money bonus (P1 #2)
         if (market.smartMoneyActive) {
-            confidence += 8;
+            confidence += 12;
         }
         confidence = Math.max(0, Math.min(100, confidence));
         if (confidence >= this.cfg.minConfidence) {
@@ -128,11 +128,16 @@ class DefaultStrategy {
             else {
                 outcomeIndex = 1; // Buy NO — overvalued
             }
+            // Copy-trade override: if validated smart-money outcome is present,
+            // prefer their side for this market.
+            if (market.smartMoneyActive && market.smartMoneyOutcomeIndex !== undefined) {
+                outcomeIndex = market.smartMoneyOutcomeIndex;
+            }
             return {
                 shouldTrade: true,
                 side,
                 outcomeIndex,
-                reason: `High confidence (vol=$${market.volume.toFixed(0)}, liq=$${market.liquidity.toFixed(0)}, dir=${price < 0.15 ? 'NO-longshot' : price < 0.5 ? 'YES' : 'NO'})`,
+                reason: `High confidence (vol=$${market.volume.toFixed(0)}, liq=$${market.liquidity.toFixed(0)}, dir=${market.smartMoneyActive && market.smartMoneyOutcomeIndex !== undefined ? `SMART_${market.smartMoneyOutcomeIndex}` : price < 0.15 ? 'NO-longshot' : price < 0.5 ? 'YES' : 'NO'})`,
                 confidence,
             };
         }

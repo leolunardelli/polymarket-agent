@@ -86,6 +86,12 @@ export interface LeaderboardSnapshot {
   totalTraders: number;
 }
 
+export interface SmartMoneySignals {
+  marketSet: Set<string>;
+  preferredOutcome: Map<string, number>;
+  selectedTraders: number;
+}
+
 // P2 #10: Seed addresses — will be supplemented by discoverTopTraders()
 const KNOWN_TOP_TRADERS = [
   '0x6a72f61820b26b1fe4d956e17b6dc2a1ea3033ee', // kch123
@@ -100,6 +106,8 @@ class LeaderboardAnalyzer {
   private traderMetricsCache: Map<string, { data: TraderMetrics; fetchedAt: number }> = new Map();
   private readonly traderCacheTTL = 30 * 60 * 1000; // 30 minutes
   private discoveryDone: boolean = false;
+  private smartMoneyCache: { data: SmartMoneySignals; fetchedAt: number } | null = null;
+  private readonly smartMoneyCacheTTL = 30 * 60 * 1000; // 30 minutes
 
   constructor() {
     logger.info('LeaderboardAnalyzer initialized - using real Data API');
@@ -124,28 +132,66 @@ class LeaderboardAnalyzer {
   async discoverTopTraders(minTrades: number = 10): Promise<string[]> {
     if (this.discoveryDone) return this.knownTraders;
     try {
-      const url = `${this.dataApiUrl}/activity?limit=500`;
-      const response = await fetch(url);
-      if (!response.ok) {
-        logger.warn('Trader discovery: API error', { status: response.status });
-        return this.knownTraders;
-      }
-      const data = await response.json() as ActivityData[] | { value?: ActivityData[] };
-      const activities: ActivityData[] = Array.isArray(data) ? data : (data.value || []);
+      const urls = [
+        `${this.dataApiUrl}/activity?limit=500`,
+        `${this.dataApiUrl}/activity?limit=1000`,
+      ];
 
-      // Count trades per wallet
-      const walletCounts = new Map<string, number>();
-      for (const act of activities) {
-        const wallet = act.proxyWallet?.toLowerCase();
-        if (wallet) {
-          walletCounts.set(wallet, (walletCounts.get(wallet) || 0) + 1);
+      const batches = await Promise.all(
+        urls.map(async (url) => {
+          try {
+            const response = await fetch(url);
+            if (!response.ok) return [] as ActivityData[];
+            const data = await response.json() as ActivityData[] | { value?: ActivityData[] };
+            return Array.isArray(data) ? data : (data.value || []);
+          } catch {
+            return [] as ActivityData[];
+          }
+        })
+      );
+
+      const dedupe = new Set<string>();
+      const activities: ActivityData[] = [];
+      for (const batch of batches) {
+        for (const act of batch) {
+          const key = `${act.transactionHash}_${act.proxyWallet}_${act.timestamp}`;
+          if (dedupe.has(key)) continue;
+          dedupe.add(key);
+          activities.push(act);
         }
       }
 
-      // Add wallets that appear frequently
+      if (activities.length === 0) {
+        logger.warn('Trader discovery: no activity data');
+        return this.knownTraders;
+      }
+
+      // Count trades per wallet
+      const walletStats = new Map<string, { trades: number; notional: number; uniqueMarkets: Set<string> }>();
+      for (const act of activities) {
+        const wallet = act.proxyWallet?.toLowerCase();
+        if (wallet) {
+          const existing = walletStats.get(wallet) || { trades: 0, notional: 0, uniqueMarkets: new Set<string>() };
+          existing.trades += 1;
+          existing.notional += Math.abs(act.usdcSize || 0);
+          if (act.conditionId) existing.uniqueMarkets.add(act.conditionId);
+          walletStats.set(wallet, existing);
+        }
+      }
+
+      // Add wallets that appear frequently and have meaningful notional/coverage
+      const ranked = Array.from(walletStats.entries())
+        .filter(([, stats]) => stats.trades >= minTrades && stats.notional >= 1000)
+        .sort((a, b) => {
+          const scoreA = a[1].trades * 0.6 + a[1].uniqueMarkets.size * 0.3 + Math.log10(a[1].notional + 1) * 3;
+          const scoreB = b[1].trades * 0.6 + b[1].uniqueMarkets.size * 0.3 + Math.log10(b[1].notional + 1) * 3;
+          return scoreB - scoreA;
+        })
+        .slice(0, 80);
+
       const discovered: string[] = [];
-      for (const [wallet, count] of walletCounts) {
-        if (count >= minTrades && !this.knownTraders.includes(wallet)) {
+      for (const [wallet] of ranked) {
+        if (!this.knownTraders.includes(wallet)) {
           this.knownTraders.push(wallet);
           discovered.push(wallet);
         }
@@ -164,6 +210,97 @@ class LeaderboardAnalyzer {
       });
       return this.knownTraders;
     }
+  }
+
+  async getSmartMoneySignals(
+    period: 'week' | 'month' | 'all-time' = 'week',
+    limit: number = 30
+  ): Promise<SmartMoneySignals> {
+    if (this.smartMoneyCache && Date.now() - this.smartMoneyCache.fetchedAt < this.smartMoneyCacheTTL) {
+      return this.smartMoneyCache.data;
+    }
+
+    await this.discoverTopTraders(8);
+    const leaderboard = await this.getTopTradersByWinRate(period, 60);
+
+    const selected = leaderboard
+      .filter((t) => t.totalTrades >= 30)
+      .filter((t) => t.winRate >= 50)
+      .filter((t) => (period === 'week' ? t.weeklyPnL >= -200 : t.monthlyPnL >= -500))
+      .sort((a, b) => {
+        const aScore = a.winRate * 0.6 + Math.log10(a.totalTrades + 1) * 20 + Math.max(0, a.weeklyPnL) / 200;
+        const bScore = b.winRate * 0.6 + Math.log10(b.totalTrades + 1) * 20 + Math.max(0, b.weeklyPnL) / 200;
+        return bScore - aScore;
+      })
+      .slice(0, limit);
+
+    const marketScore = new Map<string, number>();
+    const outcomeScore = new Map<string, { zero: number; one: number }>();
+
+    await Promise.all(
+      selected.map(async (trader) => {
+        try {
+          const positions = await this.fetchPositions(trader.address, 120);
+          const active = positions
+            .filter((p) => !p.redeemable)
+            .filter((p) => p.size > 0)
+            .filter((p) => !p.endDate || new Date(p.endDate).getTime() > Date.now());
+
+          const traderWeight = Math.max(1, (trader.winRate - 45) / 10) + Math.log10(trader.totalTrades + 1);
+
+          for (const pos of active) {
+            if (!pos.conditionId) continue;
+            const conditionId = pos.conditionId;
+            const pnlBoost = pos.percentPnl > 0 ? 0.5 : 0;
+            const sizeBoost = Math.min(3, Math.log10(Math.max(1, pos.currentValue) + 1));
+            const increment = traderWeight + pnlBoost + sizeBoost;
+
+            marketScore.set(conditionId, (marketScore.get(conditionId) || 0) + increment);
+
+            const bucket = outcomeScore.get(conditionId) || { zero: 0, one: 0 };
+            if (pos.outcomeIndex === 1) bucket.one += increment;
+            else bucket.zero += increment;
+            outcomeScore.set(conditionId, bucket);
+          }
+        } catch (error) {
+          logger.debug('Smart-money positions fetch failed', {
+            address: trader.address,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      })
+    );
+
+    const rankedMarkets = Array.from(marketScore.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 120);
+
+    const marketSet = new Set<string>();
+    const preferredOutcome = new Map<string, number>();
+
+    for (const [conditionId, score] of rankedMarkets) {
+      if (score < 4) continue;
+      marketSet.add(conditionId);
+      const outcome = outcomeScore.get(conditionId);
+      if (outcome) {
+        preferredOutcome.set(conditionId, outcome.one > outcome.zero ? 1 : 0);
+      }
+    }
+
+    const result: SmartMoneySignals = {
+      marketSet,
+      preferredOutcome,
+      selectedTraders: selected.length,
+    };
+
+    this.smartMoneyCache = { data: result, fetchedAt: Date.now() };
+
+    logger.info('Smart-money signals built', {
+      selectedTraders: selected.length,
+      markets: marketSet.size,
+    });
+
+    return result;
   }
 
   /**

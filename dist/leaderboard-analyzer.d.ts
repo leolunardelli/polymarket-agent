@@ -78,6 +78,11 @@ export interface LeaderboardSnapshot {
     topTraders: TraderMetrics[];
     totalTraders: number;
 }
+export interface SmartMoneySignals {
+    marketSet: Set<string>;
+    preferredOutcome: Map<string, number>;
+    selectedTraders: number;
+}
 declare class LeaderboardAnalyzer {
     private readonly dataApiUrl;
     private snapshots;
@@ -86,6 +91,8 @@ declare class LeaderboardAnalyzer {
     private traderMetricsCache;
     private readonly traderCacheTTL;
     private discoveryDone;
+    private smartMoneyCache;
+    private readonly smartMoneyCacheTTL;
     constructor();
     /**
      * Add trader addresses to track
@@ -96,6 +103,7 @@ declare class LeaderboardAnalyzer {
      * Fetches recent trades and identifies unique wallets with many transactions.
      */
     discoverTopTraders(minTrades?: number): Promise<string[]>;
+    getSmartMoneySignals(period?: 'week' | 'month' | 'all-time', limit?: number): Promise<SmartMoneySignals>;
     /**
      * Fetch positions for a trader from the REAL Data API
      */
