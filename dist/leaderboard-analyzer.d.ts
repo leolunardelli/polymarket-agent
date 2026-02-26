@@ -61,6 +61,7 @@ export interface TraderMetrics {
     address: string;
     username?: string;
     winRate: number;
+    resolvedTrades: number;
     monthlyPnL: number;
     weeklyPnL: number;
     totalTrades: number;
@@ -103,6 +104,7 @@ declare class LeaderboardAnalyzer {
      * Fetches recent trades and identifies unique wallets with many transactions.
      */
     discoverTopTraders(minTrades?: number): Promise<string[]>;
+    private traderQualityScore;
     getSmartMoneySignals(period?: 'week' | 'month' | 'all-time', limit?: number): Promise<SmartMoneySignals>;
     /**
      * Fetch positions for a trader from the REAL Data API

@@ -178,7 +178,10 @@ export class DefaultStrategy implements Strategy {
 
     // Smart money bonus (P1 #2)
     if (market.smartMoneyActive) {
-      confidence += 12;
+      confidence += 10;
+      if (market.smartMoneyOutcomeIndex !== undefined) {
+        confidence += 4;
+      }
     }
 
     confidence = Math.max(0, Math.min(100, confidence));
@@ -219,11 +222,20 @@ export class DefaultStrategy implements Strategy {
         outcomeIndex = 1; // Buy NO — overvalued
       }
 
+      const modelOutcomeIndex = outcomeIndex;
+
       // Copy-trade override: if validated smart-money outcome is present,
-      // prefer their side for this market.
+      // prefer their side for this market and reward alignment.
       if (market.smartMoneyActive && market.smartMoneyOutcomeIndex !== undefined) {
+        if (market.smartMoneyOutcomeIndex === modelOutcomeIndex) {
+          confidence += 6;
+        } else {
+          confidence += 3;
+        }
         outcomeIndex = market.smartMoneyOutcomeIndex;
       }
+
+      confidence = Math.max(0, Math.min(100, confidence));
 
       return {
         shouldTrade: true,

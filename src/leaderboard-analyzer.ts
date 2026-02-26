@@ -67,6 +67,7 @@ export interface TraderMetrics {
   address: string;
   username?: string;
   winRate: number; // percentage - calculated from resolved positions
+  resolvedTrades: number;
   monthlyPnL: number;
   weeklyPnL: number;
   totalTrades: number;
@@ -132,10 +133,10 @@ class LeaderboardAnalyzer {
   async discoverTopTraders(minTrades: number = 10): Promise<string[]> {
     if (this.discoveryDone) return this.knownTraders;
     try {
-      const urls = [
-        `${this.dataApiUrl}/activity?limit=500`,
-        `${this.dataApiUrl}/activity?limit=1000`,
-      ];
+      const urls = Array.from({ length: 4 }, (_, index) => {
+        const offset = index * 500;
+        return `${this.dataApiUrl}/activity?limit=500&offset=${offset}`;
+      });
 
       const batches = await Promise.all(
         urls.map(async (url) => {
@@ -212,6 +213,17 @@ class LeaderboardAnalyzer {
     }
   }
 
+  private traderQualityScore(trader: TraderMetrics, period: 'week' | 'month' | 'all-time' = 'week'): number {
+    const pnl = period === 'week' ? trader.weeklyPnL : trader.monthlyPnL;
+    const pnlScore = Math.max(-20, Math.min(40, pnl / 250));
+    const sampleScore = Math.min(30, Math.log10(trader.totalTrades + 1) * 12 + Math.log10(trader.resolvedTrades + 1) * 8);
+    const winRateScore = Math.max(0, (trader.winRate - 45) * 0.9);
+    const consistencyPenalty = trader.averageLoss < 0 && trader.averageWin > 0
+      ? Math.max(0, Math.abs(trader.averageLoss) / Math.max(1, trader.averageWin) - 1) * 8
+      : 0;
+    return winRateScore + sampleScore + pnlScore - consistencyPenalty;
+  }
+
   async getSmartMoneySignals(
     period: 'week' | 'month' | 'all-time' = 'week',
     limit: number = 30
@@ -225,13 +237,10 @@ class LeaderboardAnalyzer {
 
     const selected = leaderboard
       .filter((t) => t.totalTrades >= 30)
+      .filter((t) => t.resolvedTrades >= 6)
       .filter((t) => t.winRate >= 50)
       .filter((t) => (period === 'week' ? t.weeklyPnL >= -200 : t.monthlyPnL >= -500))
-      .sort((a, b) => {
-        const aScore = a.winRate * 0.6 + Math.log10(a.totalTrades + 1) * 20 + Math.max(0, a.weeklyPnL) / 200;
-        const bScore = b.winRate * 0.6 + Math.log10(b.totalTrades + 1) * 20 + Math.max(0, b.weeklyPnL) / 200;
-        return bScore - aScore;
-      })
+      .sort((a, b) => this.traderQualityScore(b, period) - this.traderQualityScore(a, period))
       .slice(0, limit);
 
     // Fallback path: if strict filters yield zero traders, still copy the best
@@ -240,11 +249,7 @@ class LeaderboardAnalyzer {
       ? selected
       : leaderboard
           .filter((t) => t.totalTrades >= 5)
-          .sort((a, b) => {
-            const aScore = a.winRate * 0.5 + Math.log10(a.totalTrades + 1) * 18 + Math.max(0, a.weeklyPnL) / 300;
-            const bScore = b.winRate * 0.5 + Math.log10(b.totalTrades + 1) * 18 + Math.max(0, b.weeklyPnL) / 300;
-            return bScore - aScore;
-          })
+        .sort((a, b) => this.traderQualityScore(b, period) - this.traderQualityScore(a, period))
           .slice(0, Math.min(10, limit));
 
     const marketScore = new Map<string, number>();
@@ -447,6 +452,7 @@ class LeaderboardAnalyzer {
         address,
         username,
         winRate: Math.round(winRate * 100) / 100,
+        resolvedTrades: resolvedPositions.length,
         monthlyPnL,
         weeklyPnL,
         totalTrades: activity.length,
@@ -496,7 +502,8 @@ class LeaderboardAnalyzer {
       // Filter out null results and sort by win rate
       const traders = results
         .filter((m): m is TraderMetrics => m !== null)
-        .sort((a, b) => b.winRate - a.winRate)
+        .filter((t) => t.totalTrades >= 10 || t.resolvedTrades >= 3)
+        .sort((a, b) => this.traderQualityScore(b, period) - this.traderQualityScore(a, period))
         .map((trader, index) => ({ ...trader, rank: index + 1 }));
 
       // Cache the results
