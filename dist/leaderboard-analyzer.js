@@ -138,9 +138,21 @@ class LeaderboardAnalyzer {
             return bScore - aScore;
         })
             .slice(0, limit);
+        // Fallback path: if strict filters yield zero traders, still copy the best
+        // available profiles so signal doesn't collapse to empty.
+        const selectedFinal = selected.length > 0
+            ? selected
+            : leaderboard
+                .filter((t) => t.totalTrades >= 5)
+                .sort((a, b) => {
+                const aScore = a.winRate * 0.5 + Math.log10(a.totalTrades + 1) * 18 + Math.max(0, a.weeklyPnL) / 300;
+                const bScore = b.winRate * 0.5 + Math.log10(b.totalTrades + 1) * 18 + Math.max(0, b.weeklyPnL) / 300;
+                return bScore - aScore;
+            })
+                .slice(0, Math.min(10, limit));
         const marketScore = new Map();
         const outcomeScore = new Map();
-        await Promise.all(selected.map(async (trader) => {
+        await Promise.all(selectedFinal.map(async (trader) => {
             try {
                 const positions = await this.fetchPositions(trader.address, 120);
                 const active = positions
@@ -188,11 +200,11 @@ class LeaderboardAnalyzer {
         const result = {
             marketSet,
             preferredOutcome,
-            selectedTraders: selected.length,
+            selectedTraders: selectedFinal.length,
         };
         this.smartMoneyCache = { data: result, fetchedAt: Date.now() };
         logger_1.logger.info('Smart-money signals built', {
-            selectedTraders: selected.length,
+            selectedTraders: selectedFinal.length,
             markets: marketSet.size,
         });
         return result;

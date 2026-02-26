@@ -276,7 +276,24 @@ class PolymarketAPI {
     async getMarkets(params = {}) {
         const q = new URLSearchParams();
         Object.entries(params).forEach(([k, v]) => v !== undefined && q.set(k, String(v)));
-        return this.fetch(`${this.urls.gamma}/markets?${q}`, {}, zod_1.z.array(MarketSchema));
+        const primaryUrl = `${this.urls.gamma}/markets?${q}`;
+        try {
+            return await this.fetch(primaryUrl, {}, zod_1.z.array(MarketSchema));
+        }
+        catch (error) {
+            // Gamma can intermittently 404 on some query combinations (e.g. active=true).
+            // Fallback to a reduced query instead of failing the cycle.
+            if (error instanceof APIError && error.statusCode === 404) {
+                const fallbackParams = { ...params };
+                delete fallbackParams.active;
+                const fallbackQ = new URLSearchParams();
+                Object.entries(fallbackParams).forEach(([k, v]) => v !== undefined && fallbackQ.set(k, String(v)));
+                const fallbackUrl = `${this.urls.gamma}/markets?${fallbackQ}`;
+                logger_1.logger.warn('getMarkets fallback triggered after 404', { primaryUrl, fallbackUrl });
+                return this.fetch(fallbackUrl, {}, zod_1.z.array(MarketSchema));
+            }
+            throw error;
+        }
     }
     async getMarket(slug) {
         const url = `${this.urls.gamma}/markets/${slug}`;
