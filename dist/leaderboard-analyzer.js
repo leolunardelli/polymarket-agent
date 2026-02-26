@@ -175,6 +175,26 @@ class LeaderboardAnalyzer {
                         bucket.zero += increment;
                     outcomeScore.set(conditionId, bucket);
                 }
+                // Fallback: if no active positions, infer conviction from recent BUY activity
+                if (active.length === 0) {
+                    const activity = await this.fetchActivity(trader.address, 200);
+                    const recentBuys = activity
+                        .filter((a) => a.side === 'BUY')
+                        .filter((a) => !!a.conditionId)
+                        .slice(0, 80);
+                    for (const act of recentBuys) {
+                        const conditionId = act.conditionId;
+                        const sizeBoost = Math.min(3, Math.log10(Math.max(1, act.usdcSize) + 1));
+                        const increment = traderWeight * 0.7 + sizeBoost;
+                        marketScore.set(conditionId, (marketScore.get(conditionId) || 0) + increment);
+                        const bucket = outcomeScore.get(conditionId) || { zero: 0, one: 0 };
+                        if (act.outcomeIndex === 1)
+                            bucket.one += increment;
+                        else
+                            bucket.zero += increment;
+                        outcomeScore.set(conditionId, bucket);
+                    }
+                }
             }
             catch (error) {
                 logger_1.logger.debug('Smart-money positions fetch failed', {
